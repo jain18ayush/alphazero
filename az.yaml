@@ -1,0 +1,42 @@
+experiment_name: "dynamic_concept"
+seed: 42
+
+dataset:
+  source: mcts_trajectories
+  board_size: 6
+  n_pairs: 30
+  max_attempts: 500
+  n_sims: 200
+  depth: 5
+  min_value_gap: 0.15  # Lowered slightly - may need tuning
+  min_visit_ratio: 1.10
+
+model:
+  source: "file"
+  board_size: 6 
+  name: "alphazero-othello"
+  checkpoint_path: "/Users/ayushjain/Development/Research/alphazero/models/"
+
+hooks:
+  layers:
+    # Conv layers (will have spatial dims flattened)
+    - {name: "conv1"}
+    - {name: "conv2"}
+    - {name: "conv3"}
+    - {name: "conv4"}
+    # FC layers (good candidates - already flat)
+    - {name: "fc1"}
+    - {name: "fc2"}
+    # Skip batch norm layers - they just normalize
+
+optimization:
+  method: dynamic_convex
+  batch_size: 20  # Use up to 20 pairs for optimization
+  margin: 0.0
+
+evaluation:
+  test_split: 0.2
+  runs:
+    - {name: trajectory_constraint_satisfaction, margin: 0.0}
+    - {name: trajectory_pair_accuracy}
+    - {name: sparsity, threshold: 1.0e-6}
