@@ -1,7 +1,7 @@
 # src/concepts/registry.py
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Tuple
-from src.registries import CONCEPTS
+from src.registries import CONCEPTS, COUNTERFACTUALS
 
 
 @dataclass
@@ -20,17 +20,29 @@ def split_by_concept(
     cfg: ConceptConfig,
 ) -> Tuple[List[dict], List[dict]]:
     """
-    Applies a registered concept function to positions.
-
-    Returns:
-      X_plus: positions where concept is True
-      X_minus: positions where concept is False
+    If counterfactual exists for this concept, returns matched pairs.
+    Otherwise falls back to simple split.
     """
-    fn = CONCEPTS.get(cfg.name)
-
+    check_fn = CONCEPTS.get(cfg.name)
+    
+    # Try to get counterfactual (returns None if not registered)
+    try:
+        cf_fn = COUNTERFACTUALS.get(cfg.name)
+    except KeyError:
+        cf_fn = None
+    
     X_plus, X_minus = [], []
+    
     for p in positions:
-        has_concept = bool(fn(p["grid"], p["player"], **cfg.params))
-        (X_plus if has_concept else X_minus).append(p)
-
+        has_concept = bool(check_fn(p["grid"], p["player"], **cfg.params))
+        
+        if has_concept:
+            X_plus.append(p)
+            if cf_fn:
+                X_minus.append(cf_fn(p, **cfg.params))
+    
+    # If no counterfactual, fall back to unpaired negatives
+    if cf_fn is None:
+        X_minus = [p for p in positions if not check_fn(p["grid"], p["player"], **cfg.params)]
+    
     return X_plus, X_minus

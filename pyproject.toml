@@ -22,6 +22,9 @@ dependencies = [
     "aenum",
     "torch",
     "huggingface-hub",
+    "ipykernel>=7.1.0",
+    "cvxpy>=1.7.5",
+    "scikit-learn>=1.7.2",
 ]
 
 # optional dependencies are not installed by default but can be if specified like so: pip install .[dev]

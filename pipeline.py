@@ -85,7 +85,7 @@ def run_single_layer(cfg, run_dir, logger):
     net = model_builder(model_cfg)
     logger.info(f"Model loaded: {model_cfg['source']}")
 
-    # Hooks / feature extraction
+    # Hooks / feature extraction    
     layers = cfg["hooks"]["layers"]
     layer_names = [l["name"] for l in layers]
     logger.info(f"Extracting features for layers: {layer_names}")

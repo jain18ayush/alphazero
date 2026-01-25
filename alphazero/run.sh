@@ -11,5 +11,5 @@
 
 nohup python trainer.py \
     --game "othello" \
-    --experiment-name "alphazero-othello" \
-    # --config="configs/othello.json" \
+    --experiment-name "alphazero-othello-8" \
+    --config="/Users/ayushjain/Development/Research/alphazero/models/alphazero-othello/config.json" \
