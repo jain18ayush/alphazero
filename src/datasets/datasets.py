@@ -183,8 +183,9 @@ def collect_trajectory_pairs(cfg: dict) -> List[Dict]:
         depth: int - trajectory depth
         min_value_gap: float - minimum value difference (default 0.20)
         min_visit_ratio: float - minimum visit ratio (default 1.10)
-        checkpoint_path: str - path to model checkpoint
-        model_name: str - name of model file
+        net: Optional - pre-loaded model (preferred). If not provided, will load from:
+            checkpoint_path: str - path to model checkpoint
+            model_name: str - name of model file
     """
     from alphazero.games.othello import OthelloBoard, OthelloNet
     from alphazero.players import AlphaZeroPlayer
@@ -194,21 +195,25 @@ def collect_trajectory_pairs(cfg: dict) -> List[Dict]:
     max_attempts = cfg.get('max_attempts', n_pairs * 10)
     n_sims = cfg.get('n_sims', 200)
     
-    # Load model
-    net = OthelloNet(n=board_size)
-    checkpoint_path = cfg.get('checkpoint_path', '')
-    model_name = cfg.get('model_name', 'alphazero-othello')
-    
-    import torch
-    import os
-    model_file = os.path.join(checkpoint_path, f"{model_name}.pt")
-    if os.path.exists(model_file):
-        net.load_state_dict(torch.load(model_file, map_location='cpu'))
-        print(f"Loaded model from {model_file}")
+    # Use pre-loaded model if provided, otherwise load it (backward compatibility)
+    if 'net' in cfg and cfg['net'] is not None:
+        net = cfg['net']
     else:
-        print(f"Warning: No model found at {model_file}, using random weights")
-    
-    net.eval()
+        # Fallback: load model from config (for backward compatibility)
+        net = OthelloNet(n=board_size)
+        checkpoint_path = cfg.get('checkpoint_path', '')
+        model_name = cfg.get('model_name', 'alphazero-othello')
+        
+        import torch
+        import os
+        model_file = os.path.join(checkpoint_path, f"{model_name}.pt")
+        if os.path.exists(model_file):
+            net.load_state_dict(torch.load(model_file, map_location='cpu'))
+            print(f"Loaded model from {model_file}")
+        else:
+            print(f"Warning: No model found at {model_file}, using random weights")
+        
+        net.eval()
     
     # Create player
     player = AlphaZeroPlayer(n_sim=n_sims, nn=net)

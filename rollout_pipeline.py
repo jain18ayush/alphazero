@@ -36,21 +36,21 @@ def run_dynamic(cfg: dict, run_dir: Path):
     seed = cfg['seed']
     rng = np.random.RandomState(seed)
     
-    # 1. Collect trajectory pairs
+    # 1. Load model first so it can be passed to datasets
+    print("\n=== Loading model ===")
+    net = MODELS.get(cfg['model']['source'])(cfg['model'])
+    
+    # 2. Collect trajectory pairs (pass model to dataset config)
     print("\n=== Collecting trajectory pairs ===")
     dataset_cfg = cfg['dataset'].copy()
     dataset_cfg['seed'] = seed
-    
+    dataset_cfg['net'] = net  # Pass pre-loaded model
     
     pairs = DATASETS.get(cfg['dataset']['source'])(dataset_cfg)
     print(f"Collected {len(pairs)} trajectory pairs")
     
     if len(pairs) < 3:
         raise ValueError(f"Only {len(pairs)} pairs collected. Need at least 3.")
-    
-    # 2. Load model for activation extraction
-    print("\n=== Loading model ===")
-    net = MODELS.get(cfg['model']['source'])(cfg['model'])
     
     # 3. Train/test split (by pairs)
     n = len(pairs)
@@ -150,22 +150,21 @@ def run_dynamic_with_novelty(cfg: dict, run_dir: Path):
     seed = cfg['seed']
     rng = np.random.RandomState(seed)
     
-    # 1. Collect trajectory pairs (as before)
+    # 1. Load model first so it can be passed to datasets
+    print("\n=== Loading model ===")
+    net = MODELS.get(cfg['model']['source'])(cfg['model'])
+    
+    # 2. Collect trajectory pairs (pass model to dataset config)
     print("\n=== Collecting trajectory pairs ===")
     dataset_cfg = cfg['dataset'].copy()
     dataset_cfg['seed'] = seed
-    dataset_cfg['checkpoint_path'] = cfg['model']['checkpoint_path']
-    dataset_cfg['model_name'] = cfg['model']['name']
+    dataset_cfg['net'] = net  # Pass pre-loaded model
     
     pairs = DATASETS.get(cfg['dataset']['source'])(dataset_cfg)
     print(f"Collected {len(pairs)} trajectory pairs")
     
     if len(pairs) < 3:
         raise ValueError(f"Only {len(pairs)} pairs collected. Need at least 3.")
-    
-    # 2. Load model
-    print("\n=== Loading model ===")
-    net = MODELS.get(cfg['model']['source'])(cfg['model'])
     
     # 3. NEW: Collect human and AZ game positions for novelty filtering
     if cfg.get('novelty_filtering', {}).get('enabled', False):

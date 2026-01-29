@@ -65,9 +65,18 @@ def make_run_dir(experiment_name: str, root: str = "runs") -> Path:
 def run_single_layer(cfg, run_dir, logger): 
     seed = cfg['seed']
     
-    # Dataset
+    # Model - load first so it can be passed to datasets
+    logger.info("Loading model...")
+    model_cfg = cfg['model']
+    model_builder = MODELS.get(model_cfg['source'])
+    net = model_builder(model_cfg)
+    logger.info(f"Model loaded: {model_cfg['source']}")
+    
+    # Dataset - pass model if dataset needs it
     logger.info("Loading dataset...")
-    ds_cfg = cfg['dataset']
+    ds_cfg = cfg['dataset'].copy()
+    # Pass model to dataset config (datasets that need it will use it)
+    ds_cfg['net'] = net
     ds_builder = DATASETS.get(ds_cfg['source'])
     dataset = ds_builder(ds_cfg)
     logger.info(f"Dataset loaded: {len(dataset)} samples")
@@ -77,13 +86,6 @@ def run_single_layer(cfg, run_dir, logger):
     concept_cfg = ConceptConfig.from_dict(cfg['concept'])
     X_plus, X_minus = split_by_concept(dataset, concept_cfg)
     logger.info(f"Concept split: {len(X_plus)} positive, {len(X_minus)} negative")
-
-    # Model
-    logger.info("Loading model...")
-    model_cfg = cfg['model']
-    model_builder = MODELS.get(model_cfg['source'])
-    net = model_builder(model_cfg)
-    logger.info(f"Model loaded: {model_cfg['source']}")
 
     # Hooks / feature extraction    
     layers = cfg["hooks"]["layers"]

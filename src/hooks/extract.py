@@ -161,29 +161,36 @@ def extract_paired_trajectory_activations(
     layer_name: str,
 ) -> List[Dict[str, np.ndarray]]:
     """
-    Extract activations for all trajectory pairs.
-    
+    Extract activations for all trajectory pairs with multiple subpar trajectories.
+
     Args:
         net: OthelloNet
         pairs: List of trajectory pairs from collect_trajectory_pairs
         layer_name: Layer to extract from
-    
+
     Returns:
-        List of {'chosen': (T, dim), 'rejected': (T, dim)}
+        List of {'chosen': (T, dim), 'rejected': List[(T, dim)]}
+        Note: 'rejected' is now a LIST of arrays (Equation 5 fix)
     """
     results = []
-    
+
     for pair in pairs:
+        # Extract chosen trajectory activations
         z_chosen = extract_trajectory_activations(
             net, pair['chosen'], layer_name
         )
-        z_rejected = extract_trajectory_activations(
-            net, pair['rejected'], layer_name
-        )
-        
+
+        # Extract ALL rejected trajectories (multiple subpar)
+        z_rejected_list = []
+        for rejected_traj in pair['rejected']:  # pair['rejected'] is now a list
+            z_rej = extract_trajectory_activations(
+                net, rejected_traj, layer_name
+            )
+            z_rejected_list.append(z_rej)
+
         results.append({
-            'chosen': z_chosen,
-            'rejected': z_rejected,
+            'chosen': z_chosen,           # (T, dim)
+            'rejected': z_rejected_list,  # List of (T, dim) arrays
         })
-    
+
     return results

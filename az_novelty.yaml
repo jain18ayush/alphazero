@@ -17,7 +17,7 @@ model:
   source: "file"
   board_size: 8  # Must match dataset!
   name: "alphazero-othello-8"
-  checkpoint_path: "models/alphazero-othello-8/"
+  checkpoint_path: "models/"
 
 hooks:
   layers:

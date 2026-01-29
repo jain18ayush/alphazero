@@ -4,12 +4,17 @@ seed: 42
 dataset:
   source: mcts_trajectories
   board_size: 6
-  n_pairs: 30
+  n_pairs: 50              # INCREASED from 30 (Issue #7 fix)
+  n_subpar: 3              # NEW: Multiple subpar per root (Equation 5 fix)
   max_attempts: 500
   n_sims: 200
   depth: 5
-  min_value_gap: 0.15  # Lowered slightly - may need tuning
-  min_visit_ratio: 1.10
+  min_value_gap: 0.30      # INCREASED from 0.15 (Issue #3 fix - stronger filtering)
+  min_visit_ratio: 2.0     # INCREASED from 1.10 (Issue #3 fix - stronger filtering)
+  checkpoint_path: "/Users/ayushjain/Development/Research/alphazero/models/alphazero-othello/"
+  name: "alphazero-othello"
+
+
 
 model:
   source: "file"
@@ -30,13 +35,15 @@ hooks:
     # Skip batch norm layers - they just normalize
 
 optimization:
-  method: dynamic_convex
-  batch_size: 20  # Use up to 20 pairs for optimization
-  margin: 0.0
+  method: dynamic_convex_single_player  # FIXED from dynamic_convex (Issue #1 fix)
+  batch_size: 50  # Use all pairs for optimization (increased from 20)
+  margin: 0.0     # Testing if constraints are fundamentally contradictory
 
 evaluation:
   test_split: 0.2
   runs:
+    - {name: activation_stats}                                    # NEW: Understand activation scale
+    - {name: trajectory_dynamics, threshold: 0.01}                # NEW: Validate dynamic-ness
     - {name: trajectory_constraint_satisfaction, margin: 0.0}
     - {name: trajectory_pair_accuracy}
     - {name: sparsity, threshold: 1.0e-6}

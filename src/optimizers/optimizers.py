@@ -108,10 +108,11 @@ def dynamic_convex_single_player(
     cfg: dict,
 ) -> np.ndarray:
     """
-    Same as dynamic_convex but only uses every other timestep.
-    This captures concepts for the player-to-move only (not opponent).
-    
+    Dynamic concept optimizer with multiple subpar trajectories (Equation 5).
+    Only uses every other timestep for single player perspective.
+
     From Schut et al.: "for concepts for a single player, use {z_2t}"
+    Equation 5: v · z_t^+ >= v · z_t^j + margin for all j (all subpar)
     """
     if len(activation_pairs) == 0:
         raise ValueError("No activation pairs provided")
@@ -123,18 +124,27 @@ def dynamic_convex_single_player(
     constraints = []
     
     n_constraints = 0
+    total_subpar = 0
+
     for pair in activation_pairs:
-        z_c = pair['chosen']
-        z_r = pair['rejected']
-        
-        T = min(len(z_c), len(z_r))
-        
-        # Only even timesteps (player to move at root)
-        for t in range(0, T, 2):
-            constraints.append(v @ z_c[t] >= v @ z_r[t] + margin)
-            n_constraints += 1
-    
-    print(f"  Dynamic convex (single player): {len(activation_pairs)} pairs, {n_constraints} constraints, dim={dim}")
+        z_c = pair['chosen']          # (T, dim)
+        z_r_list = pair['rejected']   # List of (T, dim) - EQUATION 5 FIX
+
+        # Loop through ALL subpar trajectories (not just one!)
+        for z_r in z_r_list:
+            T = min(len(z_c), len(z_r))
+
+            # Only even timesteps (player to move at root)
+            for t in range(0, T, 2):
+                constraints.append(v @ z_c[t] >= v @ z_r[t] + margin)
+                n_constraints += 1
+
+        total_subpar += len(z_r_list)
+
+    avg_subpar = total_subpar / len(activation_pairs) if len(activation_pairs) > 0 else 0
+    print(f"  Dynamic convex (single player, Equation 5):")
+    print(f"    {len(activation_pairs)} pairs × {avg_subpar:.1f} subpar × ~2.5 timesteps (even only)")
+    print(f"    = {n_constraints} constraints on dim={dim}")
     
     if n_constraints == 0:
         return np.zeros(dim)
@@ -143,10 +153,12 @@ def dynamic_convex_single_player(
     
     try:
         problem.solve(solver=cp.ECOS, verbose=False)
-    except Exception:
+    except Exception as e:
+        print(f"  ECOS failed ({e}), trying SCS...")
         problem.solve(solver=cp.SCS, verbose=False)
-    
+
     if problem.status == 'optimal' or problem.status == 'optimal_inaccurate':
+        print(f"  Solver: {problem.status}, objective: {problem.value:.4f}")
         return v.value
     else:
         print(f"  Optimization status: {problem.status}")

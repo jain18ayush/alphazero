@@ -25,6 +25,9 @@ dependencies = [
     "ipykernel>=7.1.0",
     "cvxpy>=1.7.5",
     "scikit-learn>=1.7.2",
+    "ecos>=2.0.14",
+    "kagglehub>=0.4.1",
+    "pandas>=2.3.3",
 ]
 
 # optional dependencies are not installed by default but can be if specified like so: pip install .[dev]
