@@ -19,9 +19,9 @@ concept:
 
 model:
   source: "base"
-  board_size: 6 
+  board_size: 6
   name: "alphazero-othello"
-  checkpoint_path: "/Users/ayushjain/Development/Research/alphazero/models/"
+  checkpoint_path: "/Users/madap/Documents/Coding/alphazero/models/"
 
 hooks:
   layers:

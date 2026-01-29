@@ -14,3 +14,4 @@ download_command.sh
 **.out
 runs/
 CLAUDE.md
+.env

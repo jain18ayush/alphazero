@@ -4,3 +4,4 @@ tqdm
 aenum
 torch
 huggingface-hub
+kagglehub[pandas-datasets]
