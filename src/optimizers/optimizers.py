@@ -183,3 +183,107 @@ def dynamic_convex_single_player(
     else:
         print(f"  Optimization status: {problem.status}")
         return v.value if v.value is not None else np.zeros(dim)
+
+
+@OPTIMIZERS.register("spine_soft_margin")
+def spine_soft_margin_optimizer(
+    Z_plus: np.ndarray,
+    Z_minus: np.ndarray,
+    cfg: dict,
+) -> np.ndarray:
+    """
+    Soft-margin concept vector optimizer for spine pairs.
+
+    Minimizes C * sum(xi) + l2 * ||v||^2
+    subject to Z_plus @ v >= Z_minus @ v + margin - xi, xi >= 0
+
+    Args:
+        Z_plus: (m, dim) activations from main path
+        Z_minus: (m, dim) activations from alternative nodes
+        cfg: dict with keys 'margin' (default 1.0), 'C' (default 1.0), 'l2' (default 1e-3)
+
+    Returns:
+        v: (dim,) concept vector
+    """
+    Z_plus = np.asarray(Z_plus)
+    Z_minus = np.asarray(Z_minus)
+    m, dim = Z_plus.shape
+
+    margin = cfg.get('margin', 1.0)
+    C = cfg.get('C', 1.0)
+    l2 = cfg.get('l2', 1e-3)
+
+    v = cp.Variable(dim)
+    xi = cp.Variable(m, nonneg=True)
+
+    constraints = [
+        Z_plus @ v >= Z_minus @ v + margin - xi
+    ]
+
+    objective = C * cp.sum(xi) + l2 * cp.sum_squares(v)
+
+    prob = cp.Problem(cp.Minimize(objective), constraints)
+
+    try:
+        prob.solve(solver=cp.ECOS, verbose=False)
+    except Exception as e:
+        print(f"  ECOS failed: {e}, trying SCS...")
+        prob.solve(solver=cp.SCS, verbose=False)
+
+    if prob.status in ('optimal', 'optimal_inaccurate'):
+        print(f"  Spine soft margin: {prob.status}, objective={prob.value:.4f}, slack sum={np.sum(xi.value):.4f}")
+        return v.value
+    else:
+        print(f"  Spine soft margin status: {prob.status}")
+        return v.value if v.value is not None else np.zeros(dim)
+
+
+@OPTIMIZERS.register("spine_hard_margin")
+def spine_hard_margin_optimizer(
+    Z_plus: np.ndarray,
+    Z_minus: np.ndarray,
+    cfg: dict,
+) -> np.ndarray:
+    """
+    Hard-margin concept vector optimizer for spine pairs.
+
+    Minimizes l1 * ||v||_1
+    subject to Z_plus @ v >= Z_minus @ v + margin
+
+    Args:
+        Z_plus: (m, dim) activations from main path
+        Z_minus: (m, dim) activations from alternative nodes
+        cfg: dict with keys 'margin' (default 0.0), 'l1' (default 1.0)
+
+    Returns:
+        v: (dim,) concept vector
+    """
+    Z_plus = np.asarray(Z_plus)
+    Z_minus = np.asarray(Z_minus)
+    m, dim = Z_plus.shape
+
+    margin = cfg.get('margin', 0.0)
+    l1 = cfg.get('l1', 1.0)
+
+    v = cp.Variable(dim)
+
+    constraints = [
+        Z_plus @ v >= Z_minus @ v + margin
+    ]
+
+    objective = l1 * cp.norm1(v)
+
+    prob = cp.Problem(cp.Minimize(objective), constraints)
+
+    try:
+        prob.solve(solver=cp.ECOS, verbose=False)
+    except Exception as e:
+        print(f"  ECOS failed: {e}, trying SCS...")
+        prob.solve(solver=cp.SCS, verbose=False)
+
+    if prob.status in ('optimal', 'optimal_inaccurate'):
+        print(f"  Spine hard margin: {prob.status}, objective={prob.value:.4f}")
+        return v.value
+    else:
+        print(f"  Spine hard margin status: {prob.status}")
+        return v.value if v.value is not None else np.zeros(dim)

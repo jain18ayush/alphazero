@@ -165,6 +165,86 @@ def activation_stats(ctx: dict, **kwargs) -> Dict[str, Any]:
     }
 
 
+@EVALUATORS.register("spine_pair_separation")
+def spine_pair_separation(ctx: dict, **kwargs) -> Dict[str, Any]:
+    """
+    Evaluate how well the concept vector separates spine Z+ vs Z- pairs.
+
+    Reads ctx['v'], ctx['Z_plus'], ctx['Z_minus'], ctx['out_dir'].
+    Computes projections, constraint satisfaction rate, margin stats.
+    Saves histogram plot to out_dir / "pair_separation.png".
+    """
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+
+    v = ctx['v']
+    Z_plus = ctx['Z_plus']
+    Z_minus = ctx['Z_minus']
+    out_dir = ctx.get('out_dir')
+
+    if v is None or len(Z_plus) == 0:
+        return {'constraint_satisfaction': 0.0, 'n_satisfied': 0, 'n_total': 0,
+                'mean_margin': 0.0, 'min_margin': 0.0}
+
+    v = np.asarray(v).reshape(-1)
+    Z_plus = np.asarray(Z_plus)
+    Z_minus = np.asarray(Z_minus)
+
+    # Normalize v for scale-invariant projections
+    v_norm = np.linalg.norm(v)
+    v_unit = v / v_norm if v_norm > 0 else v
+
+    p = Z_plus @ v_unit
+    m = Z_minus @ v_unit
+    d = p - m  # per-pair margin
+
+    n_total = len(d)
+    n_satisfied = int(np.sum(d >= 0))
+    constraint_satisfaction = float(n_satisfied / n_total) if n_total > 0 else 0.0
+
+    result = {
+        'constraint_satisfaction': constraint_satisfaction,
+        'n_satisfied': n_satisfied,
+        'n_total': n_total,
+        'mean_margin': float(np.mean(d)) if n_total > 0 else 0.0,
+        'min_margin': float(np.min(d)) if n_total > 0 else 0.0,
+        'median_margin': float(np.median(d)) if n_total > 0 else 0.0,
+        'mean_plus_proj': float(np.mean(p)) if n_total > 0 else 0.0,
+        'mean_minus_proj': float(np.mean(m)) if n_total > 0 else 0.0,
+    }
+
+    # Save histogram
+    if out_dir is not None:
+        from pathlib import Path
+        out_dir = Path(out_dir)
+
+        fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+
+        # Overlaid projections
+        axes[0].hist(p, bins=30, alpha=0.6, label="Z+ (main)")
+        axes[0].hist(m, bins=30, alpha=0.6, label="Z- (alt)")
+        axes[0].set_xlabel("projection onto v")
+        axes[0].set_ylabel("count")
+        axes[0].set_title("Projections: main vs alternative")
+        axes[0].legend()
+
+        # Per-pair margin
+        axes[1].hist(d, bins=30, alpha=0.8)
+        axes[1].axvline(0, linestyle="--", color="red", linewidth=1, label="margin=0")
+        axes[1].set_xlabel("margin (plus - minus)")
+        axes[1].set_ylabel("count")
+        axes[1].set_title(f"Pair margins ({constraint_satisfaction:.0%} satisfied)")
+        axes[1].legend()
+
+        plt.tight_layout()
+        plt.savefig(out_dir / "pair_separation.png", dpi=150)
+        plt.close()
+        result['saved'] = "pair_separation.png"
+
+    return result
+
+
 @EVALUATORS.register("trajectory_dynamics")
 def trajectory_dynamics(ctx: dict, threshold: float = 0.01, **kwargs) -> Dict[str, Any]:
     """
