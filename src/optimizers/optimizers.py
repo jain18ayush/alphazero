@@ -41,6 +41,26 @@ def find_concept_vector(Z_plus: np.ndarray, Z_minus: np.ndarray, opt_cfg: dict):
         print(f"Optimization failed: {problem.status}")
         return None
 
+@OPTIMIZERS.register("dynamic_pairs")
+def find_concept_vector_from_pairs(
+    Z_plus: np.ndarray,   # (n_pairs, dim)
+    Z_minus: np.ndarray,  # (n_pairs, dim) - ALIGNED
+    margin: float = 0.0,
+) -> np.ndarray:
+    """
+    Each row i: v @ Z_plus[i] >= v @ Z_minus[i] + margin
+    """
+    n_pairs, dim = Z_plus.shape
+    v = cp.Variable(dim)
+    
+    constraints = [v @ Z_plus[i] >= v @ Z_minus[i] + margin 
+                   for i in range(n_pairs)]
+    
+    problem = cp.Problem(cp.Minimize(cp.norm(v, 1)), constraints)
+    problem.solve(solver=cp.ECOS)
+    
+    return v.value
+
 
 @OPTIMIZERS.register("dynamic_convex")
 def dynamic_convex_optimizer(
