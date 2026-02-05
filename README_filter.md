@@ -6,3 +6,5 @@
 <--- STREAM 1 SUCCESS --->
 
 3. Run the novelty filter 
+
+Need to do section 5.1.3 to truly make sure something is there.... --> can do this at the end? 

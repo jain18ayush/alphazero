@@ -1,9 +1,92 @@
 from alphazero.arena import Arena
-from alphazero.players import RandomPlayer, MCTSPlayer
+from alphazero.players import RandomPlayer, MCTSPlayer, AlphaZeroPlayer
 from alphazero.games.othello import OthelloBoard
 
 from src.registries import DATASETS
 import numpy as np
+
+@DATASETS.register("model_play")
+def generate_model_games(cfg):
+    """
+    Generate games using a neural network model and collect all positions.
+
+    Config:
+        board_size: int - board size (e.g., 8 for standard Othello)
+        n_games: int - number of games to generate
+        net: PolicyValueNetwork - the neural network to use for move selection
+        n_sims: int - number of MCTS simulations per move (default 50)
+        temp: float - temperature for move selection (default 1.0, higher = more exploration)
+        min_move_number: int - skip positions before this move (default 0)
+        max_move_number: int - skip positions after this move (default 100)
+        seed: int - random seed (default 42)
+
+    Returns:
+        List of position dicts with 'grid', 'player', 'move_number'
+    """
+    from alphazero.games.othello import OthelloBoard, OthelloNet
+
+    board_size = cfg['board_size']
+    n_games = cfg['n_games']
+    n_sims = cfg.get('n_sims', 50)
+    temp = cfg.get('temp', 1.0)
+    min_move = cfg.get('min_move_number', 0)
+    max_move = cfg.get('max_move_number', 100)
+    seed = cfg.get('seed', 42)
+
+    # Get the network - must be provided
+    if 'net' not in cfg or cfg['net'] is None:
+        raise ValueError("model_play requires 'net' in config - pass a loaded neural network")
+
+    net = cfg['net']
+
+    # Create AlphaZero players using the network
+    p1 = AlphaZeroPlayer(n_sim=n_sims, nn=net)
+    p2 = AlphaZeroPlayer(n_sim=n_sims, nn=net)
+
+    positions = []
+    rng = np.random.RandomState(seed)
+
+    for game_idx in range(n_games):
+        board = OthelloBoard(n=board_size)
+        board.reset()
+        p1.reset()
+        p2.reset()
+
+        move_number = 0
+
+        while not board.is_game_over():
+            print(f"Game {game_idx + 1}, Move {move_number + 1}")
+            
+            # Record position if within range
+            if move_number > max_move: 
+                break 
+
+            if min_move <= move_number <= max_move:
+                positions.append({
+                    'grid': board.grid.copy(),
+                    'player': board.player,
+                    'move_number': move_number
+                })
+
+            # Get move from the appropriate player
+            if board.player == 1:
+                move, _, _, _ = p1.get_move(board, temp=temp)
+                p1.apply_move(move, player=board.player)
+                p2.apply_move(move, player=board.player)
+            else:
+                move, _, _, _ = p2.get_move(board, temp=temp)
+                p1.apply_move(move, player=board.player)
+                p2.apply_move(move, player=board.player)
+
+            board.play_move(move)
+            move_number += 1
+
+        if (game_idx + 1) % 10 == 0:
+            print(f"  Generated {game_idx + 1}/{n_games} games, {len(positions)} positions...")
+
+    print(f"Model play: collected {len(positions)} positions from {n_games} games")
+    return positions
+
 
 @DATASETS.register("self_play") 
 def generate_games(cfg):

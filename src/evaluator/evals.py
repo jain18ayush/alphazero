@@ -170,71 +170,89 @@ def spine_pair_separation(ctx: dict, **kwargs) -> Dict[str, Any]:
     """
     Evaluate how well the concept vector separates spine Z+ vs Z- pairs.
 
-    Reads ctx['v'], ctx['Z_plus'], ctx['Z_minus'], ctx['out_dir'].
-    Computes projections, constraint satisfaction rate, margin stats.
-    Saves histogram plot to out_dir / "pair_separation.png".
+    When ctx contains 'Z_plus_test'/'Z_minus_test', reports both train and
+    test metrics (test = held-out pairs not seen during optimization).
+    Falls back to ctx['Z_plus']/ctx['Z_minus'] only when test split absent.
     """
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
 
     v = ctx['v']
-    Z_plus = ctx['Z_plus']
-    Z_minus = ctx['Z_minus']
+    Z_plus_train = ctx['Z_plus']
+    Z_minus_train = ctx['Z_minus']
+    Z_plus_test = ctx.get('Z_plus_test')
+    Z_minus_test = ctx.get('Z_minus_test')
     out_dir = ctx.get('out_dir')
 
-    if v is None or len(Z_plus) == 0:
-        return {'constraint_satisfaction': 0.0, 'n_satisfied': 0, 'n_total': 0,
-                'mean_margin': 0.0, 'min_margin': 0.0}
+    has_test = Z_plus_test is not None and Z_minus_test is not None and len(Z_plus_test) > 0
+
+    if v is None or len(Z_plus_train) == 0:
+        return {'test_constraint_satisfaction': 0.0, 'test_n_total': 0,
+                'test_mean_margin': 0.0, 'test_min_margin': 0.0,
+                'train_constraint_satisfaction': 0.0, 'train_n_total': 0,
+                'train_mean_margin': 0.0}
 
     v = np.asarray(v).reshape(-1)
-    Z_plus = np.asarray(Z_plus)
-    Z_minus = np.asarray(Z_minus)
-
-    # Normalize v for scale-invariant projections
     v_norm = np.linalg.norm(v)
     v_unit = v / v_norm if v_norm > 0 else v
 
-    p = Z_plus @ v_unit
-    m = Z_minus @ v_unit
-    d = p - m  # per-pair margin
+    def _compute_metrics(Z_p, Z_m):
+        Z_p = np.asarray(Z_p)
+        Z_m = np.asarray(Z_m)
+        p = Z_p @ v_unit
+        m = Z_m @ v_unit
+        d = p - m
+        n = len(d)
+        n_sat = int(np.sum(d >= 0))
+        return {
+            'constraint_satisfaction': float(n_sat / n) if n > 0 else 0.0,
+            'n_satisfied': n_sat,
+            'n_total': n,
+            'mean_margin': float(np.mean(d)) if n > 0 else 0.0,
+            'min_margin': float(np.min(d)) if n > 0 else 0.0,
+            'median_margin': float(np.median(d)) if n > 0 else 0.0,
+            'mean_plus_proj': float(np.mean(p)) if n > 0 else 0.0,
+            'mean_minus_proj': float(np.mean(m)) if n > 0 else 0.0,
+        }, p, m, d
 
-    n_total = len(d)
-    n_satisfied = int(np.sum(d >= 0))
-    constraint_satisfaction = float(n_satisfied / n_total) if n_total > 0 else 0.0
+    train_metrics, p_train, m_train, d_train = _compute_metrics(Z_plus_train, Z_minus_train)
 
-    result = {
-        'constraint_satisfaction': constraint_satisfaction,
-        'n_satisfied': n_satisfied,
-        'n_total': n_total,
-        'mean_margin': float(np.mean(d)) if n_total > 0 else 0.0,
-        'min_margin': float(np.min(d)) if n_total > 0 else 0.0,
-        'median_margin': float(np.median(d)) if n_total > 0 else 0.0,
-        'mean_plus_proj': float(np.mean(p)) if n_total > 0 else 0.0,
-        'mean_minus_proj': float(np.mean(m)) if n_total > 0 else 0.0,
-    }
+    if has_test:
+        test_metrics, p_test, m_test, d_test = _compute_metrics(Z_plus_test, Z_minus_test)
+    else:
+        # Backwards-compatible: no test split, use train as primary
+        test_metrics, p_test, m_test, d_test = train_metrics, p_train, m_train, d_train
 
-    # Save histogram
+    result = {}
+    for k, val in test_metrics.items():
+        result[f'test_{k}'] = val
+    for k, val in train_metrics.items():
+        result[f'train_{k}'] = val
+
+    # Save histogram of TEST projections (the meaningful generalization measure)
     if out_dir is not None:
         from pathlib import Path
         out_dir = Path(out_dir)
 
         fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+        split_label = "test" if has_test else "all"
 
         # Overlaid projections
-        axes[0].hist(p, bins=30, alpha=0.6, label="Z+ (main)")
-        axes[0].hist(m, bins=30, alpha=0.6, label="Z- (alt)")
+        axes[0].hist(p_test, bins=30, alpha=0.6, label="Z+ (main)")
+        axes[0].hist(m_test, bins=30, alpha=0.6, label="Z- (alt)")
         axes[0].set_xlabel("projection onto v")
         axes[0].set_ylabel("count")
-        axes[0].set_title("Projections: main vs alternative")
+        axes[0].set_title(f"Projections ({split_label}): main vs alternative")
         axes[0].legend()
 
         # Per-pair margin
-        axes[1].hist(d, bins=30, alpha=0.8)
+        test_cs = test_metrics['constraint_satisfaction']
+        axes[1].hist(d_test, bins=30, alpha=0.8)
         axes[1].axvline(0, linestyle="--", color="red", linewidth=1, label="margin=0")
         axes[1].set_xlabel("margin (plus - minus)")
         axes[1].set_ylabel("count")
-        axes[1].set_title(f"Pair margins ({constraint_satisfaction:.0%} satisfied)")
+        axes[1].set_title(f"Pair margins ({split_label}, {test_cs:.0%} satisfied)")
         axes[1].legend()
 
         plt.tight_layout()
@@ -243,6 +261,45 @@ def spine_pair_separation(ctx: dict, **kwargs) -> Dict[str, Any]:
         result['saved'] = "pair_separation.png"
 
     return result
+
+
+@EVALUATORS.register("spine_nontriviality")
+def spine_nontriviality(ctx: dict, threshold: float = 1e-8, **kwargs) -> Dict[str, Any]:
+    """
+    Check that the concept vector is not trivially zero.
+
+    Reports l2 norm, max component magnitude, non-zero count, effective rank,
+    and a boolean is_trivial flag.
+    """
+    v = ctx['v']
+    if v is None:
+        return {
+            'is_trivial': True,
+            'l2_norm': 0.0,
+            'max_abs': 0.0,
+            'n_nonzero': 0,
+            'dim': 0,
+            'effective_rank': 0,
+        }
+    v = np.asarray(v).reshape(-1)
+    l2 = float(np.linalg.norm(v))
+    max_abs = float(np.max(np.abs(v)))
+    n_nonzero = int(np.sum(np.abs(v) > threshold))
+    is_trivial = l2 < threshold
+    # effective rank: dimensions contributing >1% of total norm
+    if l2 > 0:
+        fracs = np.abs(v) / l2
+        effective_rank = int(np.sum(fracs > 0.01))
+    else:
+        effective_rank = 0
+    return {
+        'is_trivial': bool(is_trivial),
+        'l2_norm': l2,
+        'max_abs': max_abs,
+        'n_nonzero': n_nonzero,
+        'dim': len(v),
+        'effective_rank': effective_rank,
+    }
 
 
 @EVALUATORS.register("trajectory_dynamics")
@@ -304,4 +361,47 @@ def trajectory_dynamics(ctx: dict, threshold: float = 0.01, **kwargs) -> Dict[st
         'avg_rejected_trend': float(np.mean(rejected_trends)) if rejected_trends else 0.0,
     }
 
-
+# need to actually make this a proper ctx accept etc. 
+@EVALUATORS.register("diagnose_concept_vector")
+def diagnose_concept_vector(v, name="concept"):
+    """Visual sanity checks for a concept vector."""
+    import matplotlib.pyplot as plt
+    
+    v = np.asarray(v).reshape(-1)
+    
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+    
+    # 1. Distribution of components (should be sparse - spike at 0)
+    axes[0].hist(v, bins=100, log=True)
+    axes[0].axvline(0, color='red', linestyle='--', alpha=0.5)
+    axes[0].set_xlabel("Component value")
+    axes[0].set_ylabel("Count (log)")
+    axes[0].set_title(f"Component distribution\n(should spike at 0 if sparse)")
+    
+    # 2. Sorted absolute values (should drop quickly for sparse)
+    sorted_abs = np.sort(np.abs(v))[::-1]
+    axes[1].plot(sorted_abs)
+    axes[1].set_xlabel("Component rank")
+    axes[1].set_ylabel("|v_i|")
+    axes[1].set_title("Sorted component magnitudes\n(should drop fast if sparse)")
+    axes[1].set_yscale('log')
+    
+    # 3. Cumulative norm contribution
+    cumsum = np.cumsum(sorted_abs**2) / np.sum(sorted_abs**2)
+    axes[2].plot(cumsum)
+    axes[2].axhline(0.9, color='red', linestyle='--', label='90% of norm')
+    axes[2].set_xlabel("# of components")
+    axes[2].set_ylabel("Cumulative norm fraction")
+    axes[2].set_title(f"How many dims to capture 90% of norm?\n({np.searchsorted(cumsum, 0.9)} dims)")
+    axes[2].legend()
+    
+    plt.suptitle(name)
+    plt.tight_layout()
+    plt.savefig(f"{name}_diagnosis.png", dpi=150)
+    plt.close()
+    
+    # Print summary
+    print(f"\n{name}:")
+    print(f"  Dims for 50% norm: {np.searchsorted(cumsum, 0.5)}")
+    print(f"  Dims for 90% norm: {np.searchsorted(cumsum, 0.9)}")
+    print(f"  Dims for 99% norm: {np.searchsorted(cumsum, 0.99)}")
