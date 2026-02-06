@@ -1,0 +1,55 @@
+experiment_name: "dynamic_concept_with_novelty_kaggle"
+seed: 42
+
+positions:
+  source: "kaggle_othello_games"
+  board_size: 8
+  n_positions: 25000
+  min_move_number: 0
+  max_move_number: 60
+
+dataset:
+  source: "model_play"
+  n_games: 400
+  board_size: 8
+  n_sims: 1000
+  temp: 1.0
+  min_move_number: 0
+  max_move_number: 60
+  save_every: 100
+
+model:
+  source: "file"
+  board_size: 8  # Must match dataset!
+  name: "alphazero-othello-8"
+  checkpoint_path: "models/"
+
+hooks:
+  layers:
+    - {name: "bn2"}
+
+optimization:
+  method: dynamic_convex
+  batch_size: 10
+  margin: 0.0
+
+evaluation:
+  test_split: 0.2
+  runs:
+    - {name: trajectory_constraint_satisfaction, margin: 0.0}
+    - {name: trajectory_pair_accuracy}
+    - {name: sparsity, threshold: 1.0e-6}
+
+# Novelty filtering configuration
+novelty_filtering:
+  enabled: true
+  human_source: "kaggle_othello_games"  # Use Kaggle dataset
+  az_source: "self_play"
+  
+  # For human games (Kaggle)
+  n_samples: 10  # Target number of positions (paper uses 17184)
+  min_move_number: 8   # Skip opening (moves 1-7)
+  max_move_number: 50  # Skip endgame
+  
+  # For AZ games  
+  n_games: 100  # Number of self-play games to generate

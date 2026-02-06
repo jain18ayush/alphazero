@@ -1,7 +1,6 @@
 .DS_store
 .venv/*
 **/__pycache__/
-**/configs/
 **/models/
 **/outputs/
 **/notes.txt
@@ -15,3 +14,4 @@ download_command.sh
 runs/
 CLAUDE.md
 .env
+batches/

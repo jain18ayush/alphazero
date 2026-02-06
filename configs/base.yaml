@@ -1,0 +1,53 @@
+# ================================================
+# MINIMAL EXAMPLE - Quick Start
+# ================================================
+# File: minimal_example.yaml
+
+experiment_name: "corner_base_5"
+seed: 42
+
+dataset:
+  source: "self_play"
+  n_games: 1000
+  board_size: 6
+  player_1: { type: "random" }
+  player_2: { type: "random" }
+
+concept:
+  name: "has_corner"
+  board_size: 6 
+
+model:
+  source: "base"
+  board_size: 6
+  name: "alphazero-othello"
+  checkpoint_path: "/Users/madap/Documents/Coding/alphazero/models/"
+
+hooks:
+  layers:
+    - {name: "conv1"}
+    - {name: "bn1"}
+    - {name: "conv2"}
+    - {name: "bn2"}
+    - {name: "conv3"}
+    - {name: "bn3"}
+    - {name: "conv4"}
+    - {name: "bn4"}
+    - {name: "fc1"}
+    - {name: "fc_bn1"}
+    - {name: "fc2"}
+    - {name: "fc_bn2"}
+    - {name: "fc_probs"}
+    
+optimization:
+  method: "convex"
+  l1_margin: 0.01 
+  batch_size: 10  
+
+evaluation:
+  test_split: 0.2
+  runs:
+    - name: "acc"
+      threshold: 0
+    - name: "hist"
+      save_as: "proj_hist.png"

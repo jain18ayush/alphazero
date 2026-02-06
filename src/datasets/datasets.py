@@ -4,6 +4,8 @@ from alphazero.games.othello import OthelloBoard
 
 from src.registries import DATASETS
 import numpy as np
+from tqdm import trange
+import uuid as uuid_lib
 
 @DATASETS.register("model_play")
 def generate_model_games(cfg):
@@ -32,6 +34,31 @@ def generate_model_games(cfg):
     min_move = cfg.get('min_move_number', 0)
     max_move = cfg.get('max_move_number', 100)
     seed = cfg.get('seed', 42)
+    save_path = cfg.get("save_path", "az_games")          # e.g. "positions.npy"
+    save_every = cfg.get("save_every")  # save every N positions
+
+    import os
+    import numpy as np
+
+    positions = []
+
+    def maybe_save():
+        nonlocal positions
+
+        if save_every is None:
+            return
+
+        if len(positions) < save_every:
+            return
+
+        batch = positions[-save_every:]      # only last batch
+        out = f"/Users/ayushjain/Development/Research/alphazero/batches/{save_path}_{uuid_lib.uuid4()}.npy"
+
+        print(f"Saving {len(batch)} positions → {out}")
+
+        np.save(out, np.array(batch, dtype=object), allow_pickle=True)
+
+              # keep memory bounded
 
     # Get the network - must be provided
     if 'net' not in cfg or cfg['net'] is None:
@@ -43,10 +70,9 @@ def generate_model_games(cfg):
     p1 = AlphaZeroPlayer(n_sim=n_sims, nn=net)
     p2 = AlphaZeroPlayer(n_sim=n_sims, nn=net)
 
-    positions = []
     rng = np.random.RandomState(seed)
 
-    for game_idx in range(n_games):
+    for game_idx in trange(n_games, desc="Generating games"):
         board = OthelloBoard(n=board_size)
         board.reset()
         p1.reset()
@@ -68,6 +94,10 @@ def generate_model_games(cfg):
                     'move_number': move_number
                 })
 
+                if save_every is not None and len(positions) % save_every == 0:
+                    maybe_save()
+
+
             # Get move from the appropriate player
             if board.player == 1:
                 move, _, _, _ = p1.get_move(board, temp=temp)
@@ -83,6 +113,8 @@ def generate_model_games(cfg):
 
         if (game_idx + 1) % 10 == 0:
             print(f"  Generated {game_idx + 1}/{n_games} games, {len(positions)} positions...")
+
+    maybe_save()
 
     print(f"Model play: collected {len(positions)} positions from {n_games} games")
     return positions

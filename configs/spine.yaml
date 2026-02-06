@@ -1,0 +1,45 @@
+experiment_name: "spine_concept_vectors_evals"
+seed: 42
+
+positions:
+  source: "kaggle_othello_games"
+  board_size: 8
+  n_positions: 100
+  min_move_number: 15
+  max_move_number: 45
+
+disagreement:
+  n_sims_pass1: 100
+  n_sims_pass2: 1000
+
+strong_model:
+  name: "alphazero-othello-8"
+  checkpoint_path: "models/"
+
+weak_model:
+  name: "alphazero-othello-8"
+  checkpoint_path: "models/alphazero-othello-8/checkpoints/alphazero-othello-8-chkpt-5.pt"
+  board_size: 8
+
+spine:
+  n_sims: 10000
+  max_depth: 5
+  sort_key: "N"
+
+hooks:
+  layers:
+    - {name: "bn2"}
+
+optimization:
+  method: "spine_soft_margin"
+  margin: 1.0
+  C: 1.0
+  l2: 1.0e-3
+
+evaluation:
+  test_split: 0.3
+  runs:
+    - {name: "sparsity", threshold: 1.0e-6}
+    - {name: "spine_pair_separation"}
+    - {name: "spine_nontriviality", threshold: 1.0e-8}
+    - {name: "diagnose_concept_vector"}
