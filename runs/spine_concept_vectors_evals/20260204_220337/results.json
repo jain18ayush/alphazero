@@ -1,0 +1,13 @@
+{
+  "n_positions_total": 100,
+  "n_positions_interesting": 41,
+  "layers": {
+    "bn2": {
+      "n_vectors": 41,
+      "shape": [
+        41,
+        2048
+      ]
+    }
+  }
+}

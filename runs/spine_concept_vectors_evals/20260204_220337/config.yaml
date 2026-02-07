@@ -1,0 +1,38 @@
+disagreement:
+  n_sims_pass1: 100
+  n_sims_pass2: 1000
+evaluation:
+  runs:
+  - name: sparsity
+    threshold: 1.0e-06
+  - name: spine_pair_separation
+  - name: spine_nontriviality
+    threshold: 1.0e-08
+  test_split: 0.3
+experiment_name: spine_concept_vectors_evals
+hooks:
+  layers:
+  - name: bn2
+optimization:
+  C: 1.0
+  l2: 0.001
+  margin: 1.0
+  method: spine_soft_margin
+positions:
+  board_size: 8
+  max_move_number: 45
+  min_move_number: 15
+  n_positions: 100
+  source: kaggle_othello_games
+seed: 42
+spine:
+  max_depth: 5
+  n_sims: 10000
+  sort_key: N
+strong_model:
+  checkpoint_path: models/
+  name: alphazero-othello-8
+weak_model:
+  board_size: 8
+  checkpoint_path: models/alphazero-othello-8/checkpoints/alphazero-othello-8-chkpt-5.pt
+  name: alphazero-othello-8
