@@ -1,0 +1,47 @@
+experiment_name: "teachability_filter"
+seed: 42
+
+positions:
+  source: "batched_load_npy"
+  folder: "batches/"
+
+concepts:
+  source: "concept_vectors_from_runs"
+  run_root: "runs/concept_vectors/BasicVectors"
+  layers: ["bn2"]
+  max_concepts: 5
+
+dynamic_prototypes:
+  max_depth: 10
+  sort_key: "N"
+  min_margin: 0.0
+  min_value_gap: 0.20
+  min_visit_gap_ratio: 0.10
+  t_offset: 5
+  top_percent: null
+  max_prototypes: 200
+  max_positions: 10000
+
+teachability:
+  n_sim: 200
+  temp: 1.0
+  epochs: 5
+  lr: 1.0e-4
+  batch_size: 64
+  test_split: 0.2
+  min_prototypes: 20
+  teachability_margin: 0.05
+
+student_selection:
+  overlap_threshold: 0.2
+  checkpoint_paths: []
+
+teacher_model:
+  source: "file"
+  name: "alphazero-othello-8"
+  checkpoint_path: "models/"
+
+student_model:
+  source: "checkpoint_file"
+  checkpoint_path: "models/alphazero-othello-8/checkpoints/alphazero-othello-8-chkpt-5.pt"
+  config_path: "models/alphazero-othello-8/config.json"

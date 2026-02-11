@@ -363,10 +363,11 @@ def trajectory_dynamics(ctx: dict, threshold: float = 0.01, **kwargs) -> Dict[st
 
 # need to actually make this a proper ctx accept etc. 
 @EVALUATORS.register("diagnose_concept_vector")
-def diagnose_concept_vector(v, name="concept"):
+def diagnose_concept_vector(ctx: dict, name="concept"):
     """Visual sanity checks for a concept vector."""
     import matplotlib.pyplot as plt
     
+    v = ctx.get('v')
     v = np.asarray(v).reshape(-1)
     
     fig, axes = plt.subplots(1, 3, figsize=(15, 4))

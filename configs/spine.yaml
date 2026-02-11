@@ -1,14 +1,13 @@
-experiment_name: "spine_concept_vectors_evals"
+experiment_name: "concept_vectors"
 seed: 42
 
 positions:
-  source: "kaggle_othello_games"
+  source: "batched_load_npy"
+  folder: "batches/"
   board_size: 8
-  n_positions: 100
-  min_move_number: 15
-  max_move_number: 45
 
 disagreement:
+  exists: /Users/ayushjain/Development/Research/alphazero/interesting.npy
   n_sims_pass1: 100
   n_sims_pass2: 1000
 

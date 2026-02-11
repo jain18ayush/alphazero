@@ -15,3 +15,4 @@ runs/
 CLAUDE.md
 .env
 batches/
+*__init__.py

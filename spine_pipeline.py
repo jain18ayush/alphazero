@@ -6,6 +6,7 @@ import os
 import numpy as np
 from pathlib import Path
 from datetime import datetime
+from tqdm import tqdm
 
 from src.registries import DATASETS, MODELS, OPTIMIZERS, EVALUATORS
 from src.evaluator.registry import run_evals
@@ -325,20 +326,28 @@ def run_spine(cfg: dict, run_dir: Path):
     # 4. Disagreement filter (two-pass)
     print("\n=== Disagreement filter ===")
     dis_cfg = cfg['disagreement']
-    interesting = find_disagreement_positions(
-        positions,
-        strong_net,
-        weak_net,
-        board_size=pos_cfg['board_size'],
-        n_sims_pass1=dis_cfg['n_sims_pass1'],
-        n_sims_pass2=dis_cfg['n_sims_pass2'],
-    )
-    print(f"Interesting positions: {len(interesting)}")
 
-    if len(interesting) == 0:
-        print("No disagreement positions found. Exiting.")
-        save_json({"n_positions": 0}, run_dir / "results.json")
-        return {}
+    if 'exists' in dis_cfg:
+        interesting = np.load(dis_cfg['exists'], allow_pickle=True)
+    else: 
+        interesting = find_disagreement_positions(
+            positions,
+            strong_net,
+            weak_net,
+            board_size=pos_cfg['board_size'],
+            n_sims_pass1=dis_cfg['n_sims_pass1'],
+            n_sims_pass2=dis_cfg['n_sims_pass2'],
+        )
+        print(f"Interesting positions: {len(interesting)}")
+
+        if len(interesting) == 0:
+            print("No disagreement positions found. Exiting.")
+            save_json({"n_positions": 0}, run_dir / "results.json")
+            return {}
+        else: 
+            # INSERT_YOUR_CODE
+            save_path = run_dir / "interesting"
+            np.save(save_path, np.array(interesting, dtype=object), allow_pickle=True)
 
     # 5. Process each interesting position
     layer_names = [l['name'] for l in cfg['hooks']['layers']]
@@ -356,135 +365,137 @@ def run_spine(cfg: dict, run_dir: Path):
 
     print(f"\n=== Processing {len(interesting)} positions, {len(layer_names)} layers ===")
 
-    for pos_idx, pos in enumerate(interesting):
-        pos_label = f"pos_{pos_idx:04d}"
-        print(f"\n--- {pos_label} (move {pos.get('move_number', '?')}) ---")
+    for pos_idx, pos in enumerate(tqdm(interesting[3400:], desc="Processing positions", initial=3400, total=len(interesting))):
+        pos_idx += 3400 # rough way to move it up 
+        try: 
+            pos_label = f"pos_{pos_idx:04d}"
+            print(f"\n--- {pos_label} (move {pos.get('move_number', '?')}) ---")
 
-        pos_dir = run_dir / pos_label
-        pos_dir.mkdir(parents=True, exist_ok=True)
+            pos_dir = run_dir / pos_label
+            pos_dir.mkdir(parents=True, exist_ok=True)
 
-        # Save position info
-        pos_info = {
-            'grid': pos['grid'].tolist(),
-            'player': int(pos['player']),
-            'move_number': pos.get('move_number'),
-        }
-        save_json(pos_info, pos_dir / "position.json")
-
-        # Set up board and run MCTS once
-        board = OthelloBoard(n=pos_cfg['board_size'])
-        board.grid = pos['grid'].copy()
-        board.player = pos['player']
-        board_snapshot = board.clone()
-
-        player = AlphaZeroPlayer(nn=strong_net, n_sim=spine_cfg['n_sims'])
-        player.reset()
-        move, _, _, _ = player.get_move(board)
-        mct = player.mct
-        print(f"  MCTS done. Best move: {move}, root children: {len(mct.root.children)}")
-
-        pos_results = {}
-
-        # levels = build_spine_tree(
-        #         mct, board_snapshot, strong_net,
-        #         max_depth=spine_cfg['max_depth'],
-        #         layer_name=layer,
-        #         sort_key=spine_cfg.get('sort_key', 'N'),
-        #     )
-
-
-        # Process each layer (reuse the same MCTS tree)
-        for layer in layer_names:
-            print(f"  Layer: {layer}")
-
-            # Build spine tree --> need to change this so it can take multiple layers at once and return multiple levels for each layer
-            levels = build_spine_tree(
-                mct, board_snapshot, strong_net,
-                max_depth=spine_cfg['max_depth'],
-                layer_name=layer,
-                sort_key=spine_cfg.get('sort_key', 'N'),
-            )
-
-            if pos_dir / f"spine_tree.png" not in os.listdir(pos_dir):
-            # save the spine tree visualization 
-                visualize_spine_decision_tree(levels, board_snapshot.n, path=pos_dir / f"spine_tree.png")
-            
-            # Extract pairs
-            Z_plus, Z_minus, pairs_meta = extract_pairs_from_spine(levels)
-            n_pairs = len(pairs_meta)
-            print(f"    Extracted {n_pairs} pairs")
-
-            if n_pairs == 0:
-                print(f"    No pairs extracted, skipping")
-                continue
-
-            dim = Z_plus.shape[1]
-            print(f"    Activation dim: {dim}")
-
-            # Train/test split of pairs
-            test_frac = eval_cfg.get('test_split', 0.3)
-            n_test = max(1, int(n_pairs * test_frac))
-            indices = np.random.permutation(n_pairs)
-            test_idx = indices[:n_test]
-            train_idx = indices[n_test:]
-
-            Z_plus_train, Z_minus_train = Z_plus[train_idx], Z_minus[train_idx]
-            Z_plus_test, Z_minus_test = Z_plus[test_idx], Z_minus[test_idx]
-            n_train = len(train_idx)
-            print(f"    Split: {n_train} train, {n_test} test")
-
-            # Optimize on train pairs only
-            print(f"    Optimizing ({opt_cfg['method']})...")
-            v = optimizer(Z_plus_train, Z_minus_train, opt_cfg)
-
-            # Create layer output directory
-            layer_safe = layer.replace('/', '_')
-            layer_dir = pos_dir / f"layer={layer_safe}"
-            layer_dir.mkdir(parents=True, exist_ok=True)
-
-            # Evaluate
-            ctx = {
-                'layer': layer,
-                'v': v,
-                'Z_plus': Z_plus_train,
-                'Z_minus': Z_minus_train,
-                'Z_plus_test': Z_plus_test,
-                'Z_minus_test': Z_minus_test,
-                'out_dir': layer_dir,
+            # Save position info
+            pos_info = {
+                'grid': pos['grid'].tolist(),
+                'player': int(pos['player']),
+                'move_number': pos.get('move_number'),
             }
+            save_json(pos_info, pos_dir / "position.json")
 
-            print(f"    Evaluating...")
-            layer_results = run_evals(ctx, eval_cfg)
-            pos_results[layer] = layer_results
+            # Set up board and run MCTS once
+            board = OthelloBoard(n=pos_cfg['board_size'])
+            board.grid = pos['grid'].copy()
+            board.player = pos['player']
+            board_snapshot = board.clone()
 
-            # Save concept vector and results
-            if v is not None:
-                np.save(layer_dir / "concept_vector.npy", v)
-                batch_vectors[layer].append(v)
-                batch_metadata[layer].append({
-                    'pos_index': pos_idx,
-                    'move_number': pos.get('move_number'),
-                    'n_pairs': n_pairs,
-                    'n_train': n_train,
-                    'n_test': n_test,
-                })
+            player = AlphaZeroPlayer(nn=strong_net, n_sim=spine_cfg['n_sims'])
+            player.reset()
+            move, _, _, _ = player.get_move(board)
+            mct = player.mct
+            print(f"  MCTS done. Best move: {move}, root children: {len(mct.root.children)}")
 
-            save_json(layer_results, layer_dir / "results.json")
+            pos_results = {}
 
-            # Print summary
-            if 'spine_pair_separation' in layer_results:
-                sep = layer_results['spine_pair_separation']
-                test_cs = sep.get('test_constraint_satisfaction', sep.get('constraint_satisfaction', 0))
-                train_cs = sep.get('train_constraint_satisfaction', 0)
-                test_margin = sep.get('test_mean_margin', sep.get('mean_margin', 0))
-                print(f"    Constraint satisfaction: train={train_cs:.3f}, test={test_cs:.3f}")
-                print(f"    Test mean margin: {test_margin:.4f}")
-            if 'sparsity' in layer_results:
-                sp = layer_results['sparsity']
-                print(f"    Sparsity: {sp['n_nonzero']}/{sp['dim']} non-zero ({sp['sparsity']:.3f})")
+            # Process each layer (reuse the same MCTS tree)
+            for layer in layer_names:
+                print(f"  Layer: {layer}")
 
-        save_json(pos_results, pos_dir / "results.json")
-        all_results[pos_label] = pos_results
+                # Build spine tree --> need to change this so it can take multiple layers at once and return multiple levels for each layer
+                levels = build_spine_tree(
+                    mct, board_snapshot, strong_net,
+                    max_depth=spine_cfg['max_depth'],
+                    layer_name=layer,
+                    sort_key=spine_cfg.get('sort_key', 'N'),
+                )
+
+                if pos_dir / f"spine_tree.png" not in os.listdir(pos_dir):
+                # save the spine tree visualization 
+                    visualize_spine_decision_tree(levels, board_snapshot.n, path=pos_dir / f"spine_tree.png")
+                
+                # Extract pairs
+                Z_plus, Z_minus, pairs_meta = extract_pairs_from_spine(levels)
+                n_pairs = len(pairs_meta)
+                print(f"    Extracted {n_pairs} pairs")
+
+                if n_pairs == 0:
+                    print(f"    No pairs extracted, skipping")
+                    continue
+
+                dim = Z_plus.shape[1]
+                print(f"    Activation dim: {dim}")
+
+                # Train/test split of pairs
+                test_frac = eval_cfg.get('test_split', 0.3)
+                n_test = max(1, int(n_pairs * test_frac))
+                indices = np.random.permutation(n_pairs)
+                test_idx = indices[:n_test]
+                train_idx = indices[n_test:]
+
+                Z_plus_train, Z_minus_train = Z_plus[train_idx], Z_minus[train_idx]
+                Z_plus_test, Z_minus_test = Z_plus[test_idx], Z_minus[test_idx]
+                n_train = len(train_idx)
+                print(f"    Split: {n_train} train, {n_test} test")
+
+                # Optimize on train pairs only
+                print(f"    Optimizing ({opt_cfg['method']})...")
+                v = optimizer(Z_plus_train, Z_minus_train, opt_cfg)
+
+                # Create layer output directory
+                layer_safe = layer.replace('/', '_')
+                layer_dir = pos_dir / f"layer={layer_safe}"
+                layer_dir.mkdir(parents=True, exist_ok=True)
+
+                # Evaluate
+                ctx = {
+                    'layer': layer,
+                    'v': v,
+                    'Z_plus': Z_plus_train,
+                    'Z_minus': Z_minus_train,
+                    'Z_plus_test': Z_plus_test,
+                    'Z_minus_test': Z_minus_test,
+                    'out_dir': layer_dir,
+                }
+
+                print(f"    Evaluating...")
+                layer_results = run_evals(ctx, eval_cfg)
+                pos_results[layer] = layer_results
+
+                # Save concept vector and results
+                if v is not None:
+                    np.save(layer_dir / "concept_vector.npy", v)
+                    batch_vectors[layer].append(v)
+                    batch_metadata[layer].append({
+                        'pos_index': pos_idx,
+                        'move_number': pos.get('move_number'),
+                        'n_pairs': n_pairs,
+                        'n_train': n_train,
+                        'n_test': n_test,
+                    })
+
+                save_json(layer_results, layer_dir / "results.json")
+
+                # Print summary
+                if 'spine_pair_separation' in layer_results:
+                    sep = layer_results['spine_pair_separation']
+                    test_cs = sep.get('test_constraint_satisfaction', sep.get('constraint_satisfaction', 0))
+                    train_cs = sep.get('train_constraint_satisfaction', 0)
+                    test_margin = sep.get('test_mean_margin', sep.get('mean_margin', 0))
+                    print(f"    Constraint satisfaction: train={train_cs:.3f}, test={test_cs:.3f}")
+                    print(f"    Test mean margin: {test_margin:.4f}")
+                if 'sparsity' in layer_results:
+                    sp = layer_results['sparsity']
+                    print(f"    Sparsity: {sp['n_nonzero']}/{sp['dim']} non-zero ({sp['sparsity']:.3f})")
+
+            save_json(pos_results, pos_dir / "results.json")
+            all_results[pos_label] = pos_results
+        
+        except Exception as e:
+            print(f"Exception occurred in processing {pos_label}: {e}")
+            import traceback
+            traceback.print_exc()
+            all_results[pos_label] = {"error": str(e)}
+            save_json({"error": str(e)}, pos_dir / "results.json")
+
 
     # 6. Aggregate: stack concept vectors per layer into batch files
     print(f"\n=== Saving batch concept vectors ===")

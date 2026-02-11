@@ -6,6 +6,16 @@ from src.registries import DATASETS
 import numpy as np
 from tqdm import trange
 import uuid as uuid_lib
+from pathlib import Path
+
+@DATASETS.register("batched_load_npy")
+def batched_load_npy(cfg):
+    """
+    Load a batch of .npy files and concatenate them into a single array.
+    """
+    folder = Path(cfg["folder"])
+    arrays = [np.load(p, allow_pickle=True) for p in sorted(folder.glob("*.npy"))]
+    return np.concatenate(arrays, axis=0)
 
 @DATASETS.register("model_play")
 def generate_model_games(cfg):
@@ -696,3 +706,78 @@ def load_human_games(cfg):
                 board.play_move(move)
         
         return positions[:n_positions]
+
+
+@DATASETS.register("human_games_npy")
+def load_human_games_npy(cfg):
+    """
+    Load human game positions from a local .npy file.
+
+    Config:
+        path: str - path to .npy file (array of dicts)
+        n_positions: int - optional cap on number of positions
+        min_move_number: int - optional min move filter (inclusive)
+        max_move_number: int - optional max move filter (inclusive)
+    """
+    path = cfg["path"]
+    n_positions = cfg.get("n_positions")
+    min_move = cfg.get("min_move_number")
+    max_move = cfg.get("max_move_number")
+
+    data = np.load(path, allow_pickle=True)
+    positions = list(data)
+
+    if min_move is not None or max_move is not None:
+        filtered = []
+        for pos in positions:
+            move_number = pos.get("move_number")
+            if move_number is None:
+                filtered.append(pos)
+                continue
+            if min_move is not None and move_number < min_move:
+                continue
+            if max_move is not None and move_number > max_move:
+                continue
+            filtered.append(pos)
+        positions = filtered
+
+    if n_positions is not None:
+        positions = positions[:n_positions]
+
+    return positions
+
+
+@DATASETS.register("concept_vectors_from_runs")
+def load_concept_vectors_from_runs(cfg):
+    """
+    Load concept vectors from previous pipeline run artifacts.
+
+    Config:
+        run_root: str
+        layers: Optional[list[str]]
+        max_concepts: Optional[int]
+    """
+    run_root = Path(cfg["run_root"])
+    layers = cfg.get("layers")
+    max_concepts = cfg.get("max_concepts")
+
+    concepts = []
+    for path in sorted(run_root.rglob("concept_vector.npy")):
+        layer_dir = path.parent.name
+        if not layer_dir.startswith("layer="):
+            continue
+
+        layer = layer_dir.split("layer=", 1)[1].replace("_", "/")
+        if layers is not None and layer not in layers:
+            continue
+
+        concepts.append({
+            "layer": layer,
+            "vector": np.load(path),
+            "path": str(path),
+        })
+
+    if max_concepts is not None:
+        concepts = concepts[:max_concepts]
+
+    return concepts

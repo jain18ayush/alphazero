@@ -144,6 +144,147 @@ def build_spine_tree(
     return levels
 
 
+def _sorted_children_by_key(node, sort_key: str):
+    if node is None or not node.children:
+        return []
+    return sorted(
+        node.children.items(),
+        key=lambda x: getattr(x[1], sort_key),
+        reverse=True,
+    )
+
+
+def _snapshot_board(board: OthelloBoard) -> Dict:
+    return {
+        "grid": board.grid.copy(),
+        "player": board.player,
+    }
+
+
+def extract_rollout_contrasts(
+    mct,
+    board: OthelloBoard,
+    max_depth: int,
+    sort_key: str = "N",
+    min_value_gap: float = 0.20,
+    min_visit_gap_ratio: float = 0.10,
+    t_offset: int = 5,
+) -> Dict:
+    """
+    Build one optimal rollout and multiple eligible subpar rollouts.
+
+    Subpar rollout at depth j must branch from the optimal path at depth j
+    and satisfy:
+      |Q_best - Q_alt| >= min_value_gap
+       OR
+      (N_best - N_alt) / N_best >= min_visit_gap_ratio
+    """
+    if mct is None or mct.root is None:
+        return {
+            "optimal_rollout": [],
+            "subpar_rollouts": [],
+            "required_depths": 0,
+            "available_depths": 0,
+        }
+
+    # Build optimal rollout from root.
+    optimal_rollout = []
+    optimal_nodes = [mct.root]       # node at depth j before taking move j
+    optimal_boards = [board.clone()] # board state at depth j
+
+    current_node = mct.root
+    current_board = board.clone()
+
+    for _ in range(max_depth):
+        children = _sorted_children_by_key(current_node, sort_key)
+        if not children:
+            break
+        best_move, best_node = children[0]
+        current_board.play_move(best_move)
+        optimal_rollout.append(_snapshot_board(current_board))
+        current_node = best_node
+        optimal_nodes.append(current_node)
+        optimal_boards.append(current_board.clone())
+
+    T = len(optimal_rollout)
+    if T == 0:
+        return {
+            "optimal_rollout": [],
+            "subpar_rollouts": [],
+            "required_depths": 0,
+            "available_depths": 0,
+        }
+
+    t_tilde = max(1, T - t_offset)
+    t_tilde = min(t_tilde, T)
+
+    subpar_rollouts = []
+    for j in range(t_tilde):
+        node_j = optimal_nodes[j]
+        board_j = optimal_boards[j].clone()
+        children = _sorted_children_by_key(node_j, sort_key)
+
+        if len(children) < 2:
+            continue
+
+        best_move, best_node = children[0]
+        best_q = float(getattr(best_node, "Q", 0.0))
+        best_n = float(max(1, getattr(best_node, "N", 0)))
+
+        chosen_alt = None
+        for alt_move, alt_node in children[1:]:
+            alt_q = float(getattr(alt_node, "Q", 0.0))
+            alt_n = float(getattr(alt_node, "N", 0))
+            value_gap = abs(best_q - alt_q)
+            visit_gap_ratio = (best_n - alt_n) / best_n
+            if value_gap >= min_value_gap or visit_gap_ratio >= min_visit_gap_ratio:
+                chosen_alt = (alt_move, alt_node, value_gap, visit_gap_ratio)
+                break
+
+        if chosen_alt is None:
+            continue
+
+        alt_move, alt_node, value_gap, visit_gap_ratio = chosen_alt
+
+        # Prefix matches optimal rollout up to depth j-1.
+        rollout_states = [
+            {"grid": s["grid"].copy(), "player": s["player"]}
+            for s in optimal_rollout[:j]
+        ]
+
+        # Diverge at depth j with subpar move, then follow best descendants.
+        board_alt = board_j.clone()
+        board_alt.play_move(alt_move)
+        rollout_states.append(_snapshot_board(board_alt))
+        current_alt_node = alt_node
+
+        # Continue until comparable horizon T.
+        for _ in range(j + 1, T):
+            alt_children = _sorted_children_by_key(current_alt_node, sort_key)
+            if not alt_children:
+                break
+            next_move, next_node = alt_children[0]
+            board_alt.play_move(next_move)
+            rollout_states.append(_snapshot_board(board_alt))
+            current_alt_node = next_node
+
+        subpar_rollouts.append({
+            "depth": j,
+            "states": rollout_states,
+            "value_gap": float(value_gap),
+            "visit_gap_ratio": float(visit_gap_ratio),
+            "best_move": best_move,
+            "subpar_move": alt_move,
+        })
+
+    return {
+        "optimal_rollout": optimal_rollout,
+        "subpar_rollouts": subpar_rollouts,
+        "required_depths": int(t_tilde),
+        "available_depths": int(len(subpar_rollouts)),
+    }
+
+
 def extract_pairs_from_spine(
     levels: List[List[Optional[Dict]]],
 ) -> Tuple[np.ndarray, np.ndarray, List[Dict]]:

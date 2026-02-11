@@ -76,18 +76,27 @@ class NoveltyFilter:
         novel_concepts = nf.filter(concept_vectors)
     """
     
-    def __init__(self, Z_human: np.ndarray, Z_az: np.ndarray):
+    def __init__(self, V_human: np.ndarray = None, V_az: np.ndarray = None, Z_human: np.ndarray = None, Z_az: np.ndarray = None):
         """
+        Construct a NoveltyFilter using either the bases V_human/V_az directly,
+        or by providing activation matrices Z_human/Z_az to compute the bases.
+
         Args:
-            Z_human: (n_samples, dim) activations from human games
-            Z_az: (n_samples, dim) activations from AZ games
+            V_human: (dim, r1) basis for human activations (optional)
+            V_az: (dim, r2) basis for AZ activations (optional)
+            Z_human: (n_samples, dim) activations from human games (optional)
+            Z_az: (n_samples, dim) activations from AZ games (optional)
         """
-        # Compute basis for each
-        self.V_human = compute_basis(Z_human)
-        self.V_az = compute_basis(Z_az)
-        
-        np.save("novelty_V_human.npy", self.V_human)
-        np.save("novelty_V_az.npy", self.V_az)
+        if V_human is not None and V_az is not None:
+            self.V_human = V_human
+            self.V_az = V_az
+        elif Z_human is not None and Z_az is not None:
+            self.V_human = compute_basis(Z_human)
+            self.V_az = compute_basis(Z_az)
+            np.save("novelty_V_human.npy", self.V_human)
+            np.save("novelty_V_az.npy", self.V_az)
+        else:
+            raise ValueError("Must provide either both V_human and V_az, or both Z_human and Z_az.")
 
         # k values: geometric progression up to min rank
         max_k = min(self.V_human.shape[1], self.V_az.shape[1])
