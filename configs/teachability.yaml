@@ -1,4 +1,4 @@
-experiment_name: "teachability_filter"
+experiment_name: "novel_teachability_filter"
 seed: 42
 
 positions:
@@ -7,9 +7,9 @@ positions:
 
 concepts:
   source: "concept_vectors_from_runs"
-  run_root: "runs/concept_vectors/BasicVectors"
+  run_root: "runs/novel/BasicVector"
   layers: ["bn2"]
-  max_concepts: 5
+  # max_concepts: 5 # the amount of concepts to load from runs 
 
 dynamic_prototypes:
   max_depth: 10
