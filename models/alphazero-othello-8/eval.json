@@ -1,0 +1,128 @@
+{
+    "eval_opponent": "mcts",
+    "eval_episodes": 40,
+    "results": {
+        "0": {
+            "player1_starts": {
+                "win": 2,
+                "loss": 18,
+                "draw": 0
+            },
+            "player2_starts": {
+                "win": 19,
+                "loss": 1,
+                "draw": 0
+            }
+        },
+        "1": {
+            "player1_starts": {
+                "win": 7,
+                "draw": 2,
+                "loss": 11
+            },
+            "player2_starts": {
+                "loss": 13,
+                "win": 5,
+                "draw": 2
+            }
+        },
+        "2": {
+            "player1_starts": {
+                "win": 17,
+                "loss": 3,
+                "draw": 0
+            },
+            "player2_starts": {
+                "draw": 2,
+                "loss": 12,
+                "win": 6
+            }
+        },
+        "3": {
+            "player1_starts": {
+                "win": 19,
+                "loss": 1,
+                "draw": 0
+            },
+            "player2_starts": {
+                "loss": 20,
+                "win": 0,
+                "draw": 0
+            }
+        },
+        "4": {
+            "player1_starts": {
+                "win": 16,
+                "loss": 3,
+                "draw": 1
+            },
+            "player2_starts": {
+                "loss": 20,
+                "win": 0,
+                "draw": 0
+            }
+        },
+        "5": {
+            "player1_starts": {
+                "win": 17,
+                "loss": 3,
+                "draw": 0
+            },
+            "player2_starts": {
+                "loss": 19,
+                "win": 1,
+                "draw": 0
+            }
+        },
+        "6": {
+            "player1_starts": {
+                "win": 18,
+                "draw": 1,
+                "loss": 1
+            },
+            "player2_starts": {
+                "loss": 19,
+                "draw": 1,
+                "win": 0
+            }
+        },
+        "7": {
+            "player1_starts": {
+                "win": 19,
+                "loss": 1,
+                "draw": 0
+            },
+            "player2_starts": {
+                "loss": 17,
+                "win": 3,
+                "draw": 0
+            }
+        },
+        "8": {
+            "player1_starts": {
+                "win": 18,
+                "loss": 2,
+                "draw": 0
+            },
+            "player2_starts": {
+                "loss": 19,
+                "win": 1,
+                "draw": 0
+            }
+        },
+        "9": {
+            "player1_starts": {
+                "win": 19,
+                "loss": 1,
+                "draw": 0
+            },
+            "player2_starts": {
+                "loss": 18,
+                "win": 2,
+                "draw": 0
+            }
+        }
+    },
+    "player1": "AlphaZeroPlayer",
+    "player2": "MCTSPlayer"
+}
