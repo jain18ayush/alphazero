@@ -24,7 +24,7 @@ spine:
   n_sims: 10000
   max_depth: 5
   sort_key: "N"
-
+/k
 hooks:
   layers:
     - {name: "bn2"}

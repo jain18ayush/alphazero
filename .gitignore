@@ -1,7 +1,6 @@
 .DS_store
 .venv/*
 **/__pycache__/
-**/models/
 **/outputs/
 **/notes.txt
 **/sandbox.ipynb
