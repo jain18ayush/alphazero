@@ -1,0 +1,354 @@
+{
+  "examples": [
+    {
+      "source_idx": 115,
+      "n_constraints": 2,
+      "min_margin": 0.09100828449762888,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 150,
+      "n_constraints": 2,
+      "min_margin": 0.0064750826007485,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 195,
+      "n_constraints": 2,
+      "min_margin": 0.03654926390699176,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 204,
+      "n_constraints": 1,
+      "min_margin": 0.3225922827553926,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 369,
+      "n_constraints": 1,
+      "min_margin": 0.7907820455132819,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 442,
+      "n_constraints": 1,
+      "min_margin": 0.39119804124430624,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 491,
+      "n_constraints": 1,
+      "min_margin": 0.1614684332660341,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 749,
+      "n_constraints": 1,
+      "min_margin": 1.115199761566205,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 782,
+      "n_constraints": 6,
+      "min_margin": 0.08203834134457116,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 812,
+      "n_constraints": 2,
+      "min_margin": 0.13457749838898014,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 1012,
+      "n_constraints": 1,
+      "min_margin": 0.0064546586044842424,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 1221,
+      "n_constraints": 1,
+      "min_margin": 0.2562437088413372,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 1322,
+      "n_constraints": 1,
+      "min_margin": 0.5295131077943789,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 1539,
+      "n_constraints": 3,
+      "min_margin": 0.0033368091504973885,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 1575,
+      "n_constraints": 4,
+      "min_margin": 0.0,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 1608,
+      "n_constraints": 3,
+      "min_margin": 0.0,
+      "required_depths": 2,
+      "available_depths": 2
+    },
+    {
+      "source_idx": 1631,
+      "n_constraints": 1,
+      "min_margin": 0.3081234564021716,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 1789,
+      "n_constraints": 2,
+      "min_margin": 0.14684894456761755,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 1837,
+      "n_constraints": 1,
+      "min_margin": 0.10130408996219709,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 2011,
+      "n_constraints": 1,
+      "min_margin": 0.010958693446900508,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 2079,
+      "n_constraints": 1,
+      "min_margin": 0.11894088108848044,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 2101,
+      "n_constraints": 1,
+      "min_margin": 0.5474690320806314,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 2177,
+      "n_constraints": 6,
+      "min_margin": 0.0,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 2241,
+      "n_constraints": 1,
+      "min_margin": 0.40986382123452414,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 2443,
+      "n_constraints": 6,
+      "min_margin": 0.0,
+      "required_depths": 2,
+      "available_depths": 2
+    },
+    {
+      "source_idx": 2516,
+      "n_constraints": 1,
+      "min_margin": 1.0112513548372632,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 2709,
+      "n_constraints": 3,
+      "min_margin": 0.020878975246799603,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 2779,
+      "n_constraints": 1,
+      "min_margin": 0.8489150451748011,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 2808,
+      "n_constraints": 1,
+      "min_margin": 0.14405748428656118,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 2889,
+      "n_constraints": 1,
+      "min_margin": 0.08629297922164045,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 3060,
+      "n_constraints": 6,
+      "min_margin": 0.11878514858642886,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 3122,
+      "n_constraints": 1,
+      "min_margin": 0.039061146289893184,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 3298,
+      "n_constraints": 2,
+      "min_margin": 0.03275563259014358,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 3300,
+      "n_constraints": 5,
+      "min_margin": 0.0023486314323163393,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 3355,
+      "n_constraints": 12,
+      "min_margin": 0.0,
+      "required_depths": 3,
+      "available_depths": 3
+    },
+    {
+      "source_idx": 3415,
+      "n_constraints": 2,
+      "min_margin": 0.15511470204552202,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 3482,
+      "n_constraints": 1,
+      "min_margin": 0.4575247057562579,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 3508,
+      "n_constraints": 1,
+      "min_margin": 0.31899148588732085,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 3588,
+      "n_constraints": 3,
+      "min_margin": 0.0,
+      "required_depths": 2,
+      "available_depths": 2
+    },
+    {
+      "source_idx": 3779,
+      "n_constraints": 2,
+      "min_margin": 0.047746663951942825,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 3790,
+      "n_constraints": 1,
+      "min_margin": 0.7586201800531998,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 3818,
+      "n_constraints": 1,
+      "min_margin": 0.1083567801633348,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 3819,
+      "n_constraints": 1,
+      "min_margin": 0.18667392962133011,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 3855,
+      "n_constraints": 1,
+      "min_margin": 0.05344777954555746,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 3884,
+      "n_constraints": 1,
+      "min_margin": 0.09766597588586923,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 3957,
+      "n_constraints": 2,
+      "min_margin": 0.007483058738271153,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 4209,
+      "n_constraints": 5,
+      "min_margin": 0.19751610397507413,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 4294,
+      "n_constraints": 1,
+      "min_margin": 0.46123111410175466,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 4383,
+      "n_constraints": 1,
+      "min_margin": 0.05978653489404828,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 4413,
+      "n_constraints": 1,
+      "min_margin": 0.2511316908638481,
+      "required_depths": 1,
+      "available_depths": 1
+    }
+  ]
+}

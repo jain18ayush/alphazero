@@ -1,0 +1,22 @@
+experiment_name: "prototype_quiz"
+
+positions:
+  source: "batched_load_npy"
+  folder: "data/novelty/az_batches/"
+  board_size: 8
+
+model:
+  source: "file"
+  name: "alphazero-othello-8"
+  checkpoint_path: "models/"
+
+prototypes:
+  meta_path: "prototype_meta_sample.json"
+
+spine:
+  n_sims: 10000
+  max_depth: 5
+  sort_key: "N"
+
+output:
+  path: "quiz_data.json"
