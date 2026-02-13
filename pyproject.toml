@@ -29,6 +29,7 @@ dependencies = [
     "kagglehub>=0.4.1",
     "pandas>=2.3.3",
     "pytest>=9.0.2",
+    "streamlit>=1.54.0",
 ]
 
 # optional dependencies are not installed by default but can be if specified like so: pip install .[dev]

@@ -11,7 +11,7 @@ import torch.nn.functional as F
 
 from alphazero.games.othello import OthelloBoard, OthelloNet
 from alphazero.players import AlphaZeroPlayer
-from src.hooks.extract import get_single_activation
+from src.hooks.extract import extract_features_by_layer, get_single_activation
 from src.spine.spine import extract_rollout_contrasts
 
 
@@ -35,11 +35,11 @@ def _score_rollout_states(
     layer: str,
     v: np.ndarray,
 ) -> List[float]:
-    scores: List[float] = []
-    for state in states:
-        z = get_single_activation(net, state["grid"], state["player"], layer)
-        scores.append(float(np.dot(v, z)))
-    return scores
+    if len(states) == 0:
+        return []
+    feats = extract_features_by_layer(net, list(states), [{"name": layer}])
+    Z = feats[layer]  # (N, D)
+    return (Z @ v).tolist()
 
 
 def dynamic_prototypes_for_concept(
@@ -108,15 +108,30 @@ def dynamic_prototypes_for_concept(
             stats["n_missing_subpar"] += 1
             continue
 
-        optimal_scores = _score_rollout_states(net, optimal_rollout, layer, v)
+        # Batch all states (optimal + all subpar) into one forward pass.
+        all_states = list(optimal_rollout)
+        segment_lengths = [len(optimal_rollout)]
+        for subpar in subpar_rollouts:
+            all_states.extend(subpar["states"])
+            segment_lengths.append(len(subpar["states"]))
+
+        all_scores = _score_rollout_states(net, all_states, layer, v)
+
+        # Slice back into optimal and subpar segments.
+        offset = 0
+        optimal_scores = all_scores[offset:offset + segment_lengths[0]]
+        offset += segment_lengths[0]
+        subpar_scores_list = []
+        for seg_len in segment_lengths[1:]:
+            subpar_scores_list.append(all_scores[offset:offset + seg_len])
+            offset += seg_len
 
         passed = True
         fail_reason = None
         n_constraints = 0
         min_margin_obs = float("inf")
 
-        for subpar in subpar_rollouts:
-            subpar_scores = _score_rollout_states(net, subpar["states"], layer, v)
+        for subpar, subpar_scores in zip(subpar_rollouts, subpar_scores_list):
             T = min(len(optimal_scores), len(subpar_scores))
             for t in range(T):
                 margin = optimal_scores[t] - subpar_scores[t]
@@ -251,6 +266,23 @@ def distill_student(
     return losses
 
 
+def _measure_top1_agreement_with_cached_teacher(
+    teacher_top1: List[int],
+    student: OthelloNet,
+    positions: Sequence[dict],
+    n_sim: int,
+    temp: float = 1.0,
+) -> Tuple[int, float]:
+    if len(teacher_top1) == 0:
+        return 0, 0.0
+    _, student_top1 = mcts_policy_for_positions(student, positions, n_sim=n_sim, temp=temp)
+    total = min(len(teacher_top1), len(student_top1))
+    if total == 0:
+        return 0, 0.0
+    matches = sum(int(a == b) for a, b in zip(teacher_top1[:total], student_top1[:total]))
+    return matches, matches / total
+
+
 def run_teachability_benchmark(
     load_student: Callable[[], OthelloNet],
     teacher: OthelloNet,
@@ -264,12 +296,27 @@ def run_teachability_benchmark(
     lr: float,
     batch_size: int,
 ) -> Dict[str, float | int | List[float]]:
+    # Pre-compute teacher MCTS once per position set (saves 3 redundant runs).
+    teacher_pis_concept, teacher_top1_train_C = mcts_policy_for_positions(
+        teacher, X_train_concept, n_sim=n_sim, temp=temp,
+    )
+    teacher_pis_random, teacher_top1_train_R = mcts_policy_for_positions(
+        teacher, X_train_random, n_sim=n_sim, temp=temp,
+    )
+    _, teacher_top1_test_C = mcts_policy_for_positions(
+        teacher, X_test_concept, n_sim=n_sim, temp=temp,
+    )
+    _, teacher_top1_test_R = mcts_policy_for_positions(
+        teacher, X_test_random, n_sim=n_sim, temp=temp,
+    )
+
     # Baseline on concept test.
     student_baseline = load_student()
-    _, baseline = measure_top1_agreement(teacher, student_baseline, X_test_concept, n_sim=n_sim, temp=temp)
+    _, baseline = _measure_top1_agreement_with_cached_teacher(
+        teacher_top1_test_C, student_baseline, X_test_concept, n_sim=n_sim, temp=temp,
+    )
 
     # Train concept student.
-    teacher_pis_concept, _ = mcts_policy_for_positions(teacher, X_train_concept, n_sim=n_sim, temp=temp)
     student_concept = load_student()
     losses_concept = distill_student(
         student_concept,
@@ -279,11 +326,14 @@ def run_teachability_benchmark(
         lr=lr,
         batch_size=batch_size,
     )
-    _, train_C_eval_C = measure_top1_agreement(teacher, student_concept, X_test_concept, n_sim=n_sim, temp=temp)
-    _, train_C_eval_R = measure_top1_agreement(teacher, student_concept, X_test_random, n_sim=n_sim, temp=temp)
+    _, train_C_eval_C = _measure_top1_agreement_with_cached_teacher(
+        teacher_top1_test_C, student_concept, X_test_concept, n_sim=n_sim, temp=temp,
+    )
+    _, train_C_eval_R = _measure_top1_agreement_with_cached_teacher(
+        teacher_top1_test_R, student_concept, X_test_random, n_sim=n_sim, temp=temp,
+    )
 
     # Train random student.
-    teacher_pis_random, _ = mcts_policy_for_positions(teacher, X_train_random, n_sim=n_sim, temp=temp)
     student_random = load_student()
     losses_random = distill_student(
         student_random,
@@ -293,8 +343,12 @@ def run_teachability_benchmark(
         lr=lr,
         batch_size=batch_size,
     )
-    _, train_R_eval_C = measure_top1_agreement(teacher, student_random, X_test_concept, n_sim=n_sim, temp=temp)
-    _, train_R_eval_R = measure_top1_agreement(teacher, student_random, X_test_random, n_sim=n_sim, temp=temp)
+    _, train_R_eval_C = _measure_top1_agreement_with_cached_teacher(
+        teacher_top1_test_C, student_random, X_test_concept, n_sim=n_sim, temp=temp,
+    )
+    _, train_R_eval_R = _measure_top1_agreement_with_cached_teacher(
+        teacher_top1_test_R, student_random, X_test_random, n_sim=n_sim, temp=temp,
+    )
 
     return {
         "baseline_eval_C": float(baseline),
@@ -328,9 +382,16 @@ def select_student_checkpoint(
     overlap_threshold: float,
     n_sim: int,
     temp: float,
+    teacher_top1: List[int] | None = None,
 ) -> Dict:
     ordered = sorted(checkpoint_paths, key=_checkpoint_sort_key)
     checked = []
+
+    # Pre-compute teacher MCTS once if not provided.
+    if teacher_top1 is None:
+        _, teacher_top1 = mcts_policy_for_positions(
+            teacher, prototypes, n_sim=n_sim, temp=temp,
+        )
 
     selected_path = ordered[0]
     selected_overlap = None
@@ -338,7 +399,9 @@ def select_student_checkpoint(
     for path in reversed(ordered):
         cfg = make_model_cfg(path)
         student = load_model(cfg)
-        _, overlap = measure_top1_agreement(teacher, student, prototypes, n_sim=n_sim, temp=temp)
+        _, overlap = _measure_top1_agreement_with_cached_teacher(
+            teacher_top1, student, prototypes, n_sim=n_sim, temp=temp,
+        )
         checked.append({"path": path, "overlap": float(overlap)})
         if overlap < overlap_threshold:
             selected_path = path
@@ -348,7 +411,9 @@ def select_student_checkpoint(
     if selected_overlap is None:
         cfg = make_model_cfg(selected_path)
         student = load_model(cfg)
-        _, selected_overlap = measure_top1_agreement(teacher, student, prototypes, n_sim=n_sim, temp=temp)
+        _, selected_overlap = _measure_top1_agreement_with_cached_teacher(
+            teacher_top1, student, prototypes, n_sim=n_sim, temp=temp,
+        )
 
     return {
         "selected_path": selected_path,

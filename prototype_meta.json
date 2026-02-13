@@ -1,0 +1,746 @@
+{
+  "examples": [
+    {
+      "source_idx": 18844,
+      "n_constraints": 1,
+      "min_margin": 0.5670234937313461,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 20363,
+      "n_constraints": 3,
+      "min_margin": 0.024027139282211868,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 2255,
+      "n_constraints": 1,
+      "min_margin": 0.1193355137600469,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 14829,
+      "n_constraints": 1,
+      "min_margin": 0.47263536946164775,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 2860,
+      "n_constraints": 2,
+      "min_margin": 0.012555043102941754,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 1181,
+      "n_constraints": 2,
+      "min_margin": 0.05274414052509302,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 22088,
+      "n_constraints": 3,
+      "min_margin": 0.04039969349542483,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 23375,
+      "n_constraints": 1,
+      "min_margin": 0.33377692707144824,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 17721,
+      "n_constraints": 3,
+      "min_margin": 0.006457127848591648,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 6848,
+      "n_constraints": 2,
+      "min_margin": 0.031716411550202994,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 3191,
+      "n_constraints": 6,
+      "min_margin": 0.02230532999164625,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 23378,
+      "n_constraints": 1,
+      "min_margin": 0.5899967846650003,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 20824,
+      "n_constraints": 2,
+      "min_margin": 0.08871795058637724,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 23457,
+      "n_constraints": 3,
+      "min_margin": 0.0,
+      "required_depths": 2,
+      "available_depths": 2
+    },
+    {
+      "source_idx": 9655,
+      "n_constraints": 1,
+      "min_margin": 1.1275800612265106,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 7711,
+      "n_constraints": 1,
+      "min_margin": 0.003884936706375297,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 14132,
+      "n_constraints": 1,
+      "min_margin": 0.22774716786344706,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 1118,
+      "n_constraints": 1,
+      "min_margin": 0.44307851455106445,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 7833,
+      "n_constraints": 1,
+      "min_margin": 1.0695302781366423,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 4454,
+      "n_constraints": 1,
+      "min_margin": 0.6162152136496094,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 15955,
+      "n_constraints": 1,
+      "min_margin": 0.4978568550850273,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 18847,
+      "n_constraints": 1,
+      "min_margin": 0.47124257899765365,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 802,
+      "n_constraints": 1,
+      "min_margin": 0.3378878797723233,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 6469,
+      "n_constraints": 1,
+      "min_margin": 0.85956269475899,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 13802,
+      "n_constraints": 1,
+      "min_margin": 0.40695706768452833,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 9863,
+      "n_constraints": 4,
+      "min_margin": 0.005959981830880118,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 10173,
+      "n_constraints": 2,
+      "min_margin": 0.001059144309237925,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 1066,
+      "n_constraints": 1,
+      "min_margin": 0.13079667773739867,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 18314,
+      "n_constraints": 3,
+      "min_margin": 0.0,
+      "required_depths": 2,
+      "available_depths": 2
+    },
+    {
+      "source_idx": 22244,
+      "n_constraints": 1,
+      "min_margin": 0.044069053051996154,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 14928,
+      "n_constraints": 1,
+      "min_margin": 0.32928122982414526,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 1877,
+      "n_constraints": 6,
+      "min_margin": 0.0,
+      "required_depths": 3,
+      "available_depths": 3
+    },
+    {
+      "source_idx": 23508,
+      "n_constraints": 1,
+      "min_margin": 0.08451176821727688,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 19404,
+      "n_constraints": 1,
+      "min_margin": 0.0010912736533640055,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 657,
+      "n_constraints": 1,
+      "min_margin": 0.25039215086201605,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 10073,
+      "n_constraints": 1,
+      "min_margin": 0.15022258198826755,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 6242,
+      "n_constraints": 1,
+      "min_margin": 0.05939645643752767,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 6146,
+      "n_constraints": 2,
+      "min_margin": 0.020694097785286192,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 7895,
+      "n_constraints": 1,
+      "min_margin": 0.6474775486942466,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 23977,
+      "n_constraints": 1,
+      "min_margin": 0.819696593402904,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 13242,
+      "n_constraints": 3,
+      "min_margin": 0.0,
+      "required_depths": 2,
+      "available_depths": 2
+    },
+    {
+      "source_idx": 13771,
+      "n_constraints": 1,
+      "min_margin": 0.052019699544824716,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 1314,
+      "n_constraints": 1,
+      "min_margin": 0.002292845879119376,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 10398,
+      "n_constraints": 1,
+      "min_margin": 0.004327572813395075,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 17971,
+      "n_constraints": 6,
+      "min_margin": 0.0008392277874394727,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 20519,
+      "n_constraints": 1,
+      "min_margin": 0.6045884501262381,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 10401,
+      "n_constraints": 1,
+      "min_margin": 0.6974826978829124,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 17911,
+      "n_constraints": 1,
+      "min_margin": 0.07194813904977226,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 16147,
+      "n_constraints": 3,
+      "min_margin": 0.006289458825198324,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 5800,
+      "n_constraints": 2,
+      "min_margin": 0.032837306846839054,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 4023,
+      "n_constraints": 1,
+      "min_margin": 0.5561449754042087,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 22025,
+      "n_constraints": 1,
+      "min_margin": 0.4402081927754161,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 1876,
+      "n_constraints": 12,
+      "min_margin": 0.0,
+      "required_depths": 4,
+      "available_depths": 4
+    },
+    {
+      "source_idx": 12793,
+      "n_constraints": 3,
+      "min_margin": 0.015810781814411645,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 315,
+      "n_constraints": 6,
+      "min_margin": 0.009360035385678422,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 20579,
+      "n_constraints": 1,
+      "min_margin": 0.3673580845493287,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 7996,
+      "n_constraints": 1,
+      "min_margin": 0.4069243650971252,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 5302,
+      "n_constraints": 1,
+      "min_margin": 0.2801219947451129,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 2139,
+      "n_constraints": 1,
+      "min_margin": 0.4476952436855893,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 8034,
+      "n_constraints": 1,
+      "min_margin": 0.03925961719141671,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 3195,
+      "n_constraints": 2,
+      "min_margin": 0.17291095760804398,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 6847,
+      "n_constraints": 1,
+      "min_margin": 0.421506267721916,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 18261,
+      "n_constraints": 1,
+      "min_margin": 0.1099587985455143,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 21133,
+      "n_constraints": 2,
+      "min_margin": 0.06982653633493213,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 19285,
+      "n_constraints": 1,
+      "min_margin": 0.008034474437247752,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 21534,
+      "n_constraints": 1,
+      "min_margin": 0.11573739493330581,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 11288,
+      "n_constraints": 1,
+      "min_margin": 0.40066460633473455,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 11325,
+      "n_constraints": 3,
+      "min_margin": 0.14500939662339873,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 15951,
+      "n_constraints": 1,
+      "min_margin": 0.15313909306222567,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 1177,
+      "n_constraints": 1,
+      "min_margin": 0.0792374938006728,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 4709,
+      "n_constraints": 1,
+      "min_margin": 0.148441675700539,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 10460,
+      "n_constraints": 1,
+      "min_margin": 0.5245741045743916,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 16459,
+      "n_constraints": 1,
+      "min_margin": 0.8556343805149069,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 17651,
+      "n_constraints": 2,
+      "min_margin": 0.06110945063159226,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 1821,
+      "n_constraints": 1,
+      "min_margin": 0.8816999737806936,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 15309,
+      "n_constraints": 1,
+      "min_margin": 0.04200736833537386,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 7091,
+      "n_constraints": 2,
+      "min_margin": 0.0043128766122774165,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 8448,
+      "n_constraints": 1,
+      "min_margin": 0.6335749485416029,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 4873,
+      "n_constraints": 2,
+      "min_margin": 0.03140592314226384,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 11537,
+      "n_constraints": 3,
+      "min_margin": 0.14839694911212908,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 18591,
+      "n_constraints": 1,
+      "min_margin": 0.09331808047581755,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 1595,
+      "n_constraints": 4,
+      "min_margin": 0.0,
+      "required_depths": 2,
+      "available_depths": 2
+    },
+    {
+      "source_idx": 8225,
+      "n_constraints": 3,
+      "min_margin": 0.2636205107787515,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 6397,
+      "n_constraints": 2,
+      "min_margin": 0.11979461680843922,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 6410,
+      "n_constraints": 1,
+      "min_margin": 0.09711204831753528,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 571,
+      "n_constraints": 1,
+      "min_margin": 0.42947768573652684,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 1879,
+      "n_constraints": 1,
+      "min_margin": 0.4895466605730355,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 4395,
+      "n_constraints": 1,
+      "min_margin": 0.03309428951288887,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 3829,
+      "n_constraints": 1,
+      "min_margin": 0.01730605944630305,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 17974,
+      "n_constraints": 1,
+      "min_margin": 0.06962203592468941,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 5722,
+      "n_constraints": 1,
+      "min_margin": 0.04620929246320615,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 15728,
+      "n_constraints": 1,
+      "min_margin": 0.06260081317264665,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 13618,
+      "n_constraints": 2,
+      "min_margin": 0.21038444216766627,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 3951,
+      "n_constraints": 1,
+      "min_margin": 0.11684117381314452,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 14890,
+      "n_constraints": 2,
+      "min_margin": 0.013419118359074611,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 18168,
+      "n_constraints": 1,
+      "min_margin": 0.07343835945022528,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 18422,
+      "n_constraints": 1,
+      "min_margin": 0.2714293565566901,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 23565,
+      "n_constraints": 2,
+      "min_margin": 0.016164379166307086,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 21947,
+      "n_constraints": 1,
+      "min_margin": 0.09780929432637486,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 1315,
+      "n_constraints": 5,
+      "min_margin": 0.0,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 7375,
+      "n_constraints": 1,
+      "min_margin": 0.4823050649773927,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 12042,
+      "n_constraints": 1,
+      "min_margin": 0.512945628767904,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 5998,
+      "n_constraints": 1,
+      "min_margin": 0.47820692908558865,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 6700,
+      "n_constraints": 1,
+      "min_margin": 0.12830162729266542,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 4165,
+      "n_constraints": 1,
+      "min_margin": 0.2257427622765573,
+      "required_depths": 1,
+      "available_depths": 1
+    },
+    {
+      "source_idx": 6945,
+      "n_constraints": 1,
+      "min_margin": 0.4709442458607595,
+      "required_depths": 1,
+      "available_depths": 1
+    }
+  ]
+}

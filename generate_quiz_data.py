@@ -11,9 +11,11 @@ Usage:
 import json
 import yaml
 import argparse
+import os
 import numpy as np
 from pathlib import Path
 from datetime import datetime
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
 
 from src.registries import DATASETS, MODELS
@@ -199,7 +201,35 @@ def generate_quiz_item(pos, meta, net, n_sims, spine_depth, board_size, sort_key
     }
 
 
-def run_quiz_generation(cfg, run_dir):
+def _worker_process(task):
+    """
+    Worker function for ProcessPoolExecutor.
+
+    Each worker loads its own model copy (torch models can't be pickled across
+    processes) and processes a single prototype.
+
+    Args:
+        task: dict with keys: pos, meta, model_cfg, n_sims, spine_depth,
+              board_size, sort_key
+    Returns:
+        (source_idx, item_or_None)
+    """
+    # Lazy imports inside worker so each process has its own module state
+    from src.registries import MODELS
+    import src.models.models  # noqa: register
+
+    model_cfg = task["model_cfg"]
+    net = MODELS.get(model_cfg["source"])(model_cfg)
+    net.eval()
+
+    item = generate_quiz_item(
+        task["pos"], task["meta"], net,
+        task["n_sims"], task["spine_depth"], task["board_size"], task["sort_key"],
+    )
+    return task["meta"]["source_idx"], item
+
+
+def run_quiz_generation(cfg, run_dir, n_workers=None):
     """Main orchestrator: load data, run MCTS on each prototype, write JSON."""
     # 1. Load positions
     print("\n=== Loading positions ===")
@@ -207,11 +237,12 @@ def run_quiz_generation(cfg, run_dir):
     positions = DATASETS.get(pos_cfg["source"])(pos_cfg)
     print(f"Loaded {len(positions)} positions")
 
-    # 2. Load model
-    print("\n=== Loading model ===")
+    # 2. Verify model loads (quick sanity check, workers will each load their own)
+    print("\n=== Loading model (sanity check) ===")
     model_cfg = cfg["model"]
     net = MODELS.get(model_cfg["source"])(model_cfg)
     net.eval()
+    del net  # free memory before forking
     print(f"Model: {model_cfg['name']}")
 
     # 3. Load prototype metadata
@@ -222,31 +253,72 @@ def run_quiz_generation(cfg, run_dir):
     prototypes = proto_data["examples"]
     print(f"Loaded {len(prototypes)} prototypes")
 
-    # 4. Generate quiz items
+    # 4. Build tasks
     spine_cfg = cfg["spine"]
     n_sims = spine_cfg["n_sims"]
     spine_depth = spine_cfg["max_depth"]
     sort_key = spine_cfg.get("sort_key", "N")
     board_size = pos_cfg["board_size"]
 
-    items = []
-    for meta in tqdm(prototypes, desc="Generating quiz items"):
+    tasks = []
+    for meta in prototypes:
         src_idx = meta["source_idx"]
         if src_idx >= len(positions):
             print(f"  Skipping source_idx={src_idx} (out of range)")
             continue
-
         pos = positions[src_idx]
-        item = generate_quiz_item(
-            pos, meta, net, n_sims, spine_depth, board_size, sort_key
-        )
-        if item is not None:
-            items.append(item)
-            print(f"  [{len(items)}] source_idx={src_idx}, az_move={item['az_move']}")
-        else:
-            print(f"  Skipped source_idx={src_idx} (no legal moves)")
+        # Convert numpy arrays to plain types so they're picklable
+        serialized_pos = {
+            "grid": pos["grid"].copy() if isinstance(pos["grid"], np.ndarray) else np.array(pos["grid"], dtype=np.float32),
+            "player": int(pos["player"]),
+            "move_number": int(pos.get("move_number", -1)),
+        }
+        tasks.append({
+            "pos": serialized_pos,
+            "meta": meta,
+            "model_cfg": model_cfg,
+            "n_sims": n_sims,
+            "spine_depth": spine_depth,
+            "board_size": board_size,
+            "sort_key": sort_key,
+        })
 
-    # 5. Build output
+    if n_workers is None:
+        n_workers = min(len(tasks), os.cpu_count() or 1)
+
+    # 5. Run in parallel
+    items = []
+    if n_workers <= 1:
+        # Fall back to sequential (useful for debugging)
+        print(f"\n=== Generating {len(tasks)} quiz items (sequential) ===")
+        net = MODELS.get(model_cfg["source"])(model_cfg)
+        net.eval()
+        for t in tqdm(tasks, desc="Generating quiz items"):
+            item = generate_quiz_item(
+                t["pos"], t["meta"], net,
+                n_sims, spine_depth, board_size, sort_key,
+            )
+            if item is not None:
+                items.append(item)
+                print(f"  [{len(items)}] source_idx={t['meta']['source_idx']}, az_move={item['az_move']}")
+            else:
+                print(f"  Skipped source_idx={t['meta']['source_idx']} (no legal moves)")
+    else:
+        print(f"\n=== Generating {len(tasks)} quiz items ({n_workers} workers) ===")
+        with ProcessPoolExecutor(max_workers=n_workers) as pool:
+            futures = {pool.submit(_worker_process, t): t for t in tasks}
+            for future in tqdm(as_completed(futures), total=len(futures), desc="Generating quiz items"):
+                src_idx, item = future.result()
+                if item is not None:
+                    items.append(item)
+                    tqdm.write(f"  [{len(items)}] source_idx={src_idx}, az_move={item['az_move']}")
+                else:
+                    tqdm.write(f"  Skipped source_idx={src_idx} (no legal moves)")
+
+    # Sort by source_idx so output is deterministic regardless of completion order
+    items.sort(key=lambda x: x["source_idx"])
+
+    # 6. Build output
     output = {
         "config": {
             "n_sims": n_sims,
@@ -284,6 +356,10 @@ def main():
     parser.add_argument(
         "--output", type=str, default=None, help="Override output path"
     )
+    parser.add_argument(
+        "--workers", type=int, default=None,
+        help="Number of parallel workers (default: cpu_count). Use 1 for sequential.",
+    )
     args = parser.parse_args()
 
     cfg = load_yaml(args.config)
@@ -301,7 +377,7 @@ def main():
     print(f"Experiment: {cfg['experiment_name']}")
     print(f"Run dir: {run_dir}")
 
-    run_quiz_generation(cfg, run_dir)
+    run_quiz_generation(cfg, run_dir, n_workers=args.workers)
 
 
 if __name__ == "__main__":

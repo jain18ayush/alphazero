@@ -14,6 +14,7 @@ if HAS_TORCH and HAS_AENUM:
     import torch.nn.functional as F
 
     from src.teachability.teachability import (
+        _measure_top1_agreement_with_cached_teacher,
         distill_student,
         is_teachable,
         measure_top1_agreement,
@@ -176,7 +177,7 @@ class TestTeachabilityCore(unittest.TestCase):
         def load_model(cfg):
             return FakeModel(cfg["checkpoint_path"])
 
-        def fake_measure(_teacher, student, _positions, n_sim, temp):
+        def fake_cached_measure(teacher_top1, student, _positions, n_sim, temp):
             overlap_by_path = {
                 "chkpt-3.pt": 0.35,
                 "chkpt-2.pt": 0.18,
@@ -184,7 +185,10 @@ class TestTeachabilityCore(unittest.TestCase):
             }
             return 0, overlap_by_path[student.path]
 
-        with patch("src.teachability.teachability.measure_top1_agreement", side_effect=fake_measure):
+        with patch(
+            "src.teachability.teachability._measure_top1_agreement_with_cached_teacher",
+            side_effect=fake_cached_measure,
+        ):
             out = select_student_checkpoint(
                 checkpoint_paths=checkpoints,
                 make_model_cfg=make_model_cfg,
@@ -194,10 +198,40 @@ class TestTeachabilityCore(unittest.TestCase):
                 overlap_threshold=0.2,
                 n_sim=10,
                 temp=1.0,
+                teacher_top1=[0],  # pre-computed, skips mcts_policy_for_positions
             )
 
         self.assertEqual(out["selected_path"], "chkpt-2.pt")
         self.assertLess(out["selected_overlap"], 0.2)
+
+
+    def test_cached_teacher_agreement_counts_matches(self):
+        positions = _make_positions(3)
+        teacher_top1 = [0, 1, 1]
+        with patch(
+            "src.teachability.teachability.mcts_policy_for_positions",
+            return_value=([np.array([1])], [0, 0, 1]),
+        ):
+            matches, overlap = _measure_top1_agreement_with_cached_teacher(
+                teacher_top1=teacher_top1,
+                student=object(),
+                positions=positions,
+                n_sim=10,
+                temp=1.0,
+            )
+        self.assertEqual(matches, 2)
+        self.assertAlmostEqual(overlap, 2 / 3)
+
+    def test_cached_teacher_agreement_empty(self):
+        matches, overlap = _measure_top1_agreement_with_cached_teacher(
+            teacher_top1=[],
+            student=object(),
+            positions=[],
+            n_sim=10,
+            temp=1.0,
+        )
+        self.assertEqual(matches, 0)
+        self.assertAlmostEqual(overlap, 0.0)
 
 
 if __name__ == "__main__":

@@ -3,11 +3,11 @@ seed: 42
 
 positions:
   source: "batched_load_npy"
-  folder: "batches/"
+  folder: "data/novelty/az_batches/"
 
 concepts:
   source: "concept_vectors_from_runs"
-  run_root: "runs/novel/BasicVector"
+  run_root: "runs/novel/Speed"
   layers: ["bn2"]
   # max_concepts: 5 # the amount of concepts to load from runs 
 

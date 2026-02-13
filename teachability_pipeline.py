@@ -1,20 +1,42 @@
 import json
 import argparse
+import time
 import numpy as np
+from collections import defaultdict
+from contextlib import contextmanager
 from pathlib import Path
 from datetime import datetime
 
 from src.registries import DATASETS, MODELS
 from src.teachability.teachability import (
+    _measure_top1_agreement_with_cached_teacher,
     dynamic_prototypes_for_concept,
     is_teachable,
     measure_top1_agreement,
+    mcts_policy_for_positions,
     run_teachability_benchmark,
     select_student_checkpoint,
 )
 
 import src.datasets.datasets
 import src.models.models
+
+
+class PhaseTimer:
+    def __init__(self):
+        self.totals: dict[str, float] = defaultdict(float)
+
+    @contextmanager
+    def __call__(self, name: str):
+        t0 = time.monotonic()
+        try:
+            yield
+        finally:
+            self.totals[name] += time.monotonic() - t0
+
+    def summary(self) -> dict[str, float]:
+        return dict(self.totals)
+
 
 def load_yaml(path: str) -> dict:
     import yaml
@@ -43,9 +65,9 @@ def _load_model(cfg: dict):
 
 def _subsample_positions(positions, max_positions: int | None, rng: np.random.RandomState):
     if max_positions is None or len(positions) <= max_positions:
-        return list(positions)
+        return list(positions), list(range(len(positions)))
     idx = rng.permutation(len(positions))[:max_positions]
-    return [positions[i] for i in idx]
+    return [positions[i] for i in idx], idx.tolist()
 
 
 def _split_positions(positions, test_split: float, rng: np.random.RandomState):
@@ -151,6 +173,7 @@ def run_teachability(cfg: dict, run_dir: Path):
     checkpoint_paths = select_cfg.get("checkpoint_paths") or []
 
     all_results = []
+    run_timer = PhaseTimer()
 
     print(f"\n=== Processing {len(concepts)} concepts ===")
     for i, concept in enumerate(concepts):
@@ -163,25 +186,32 @@ def run_teachability(cfg: dict, run_dir: Path):
         concept_dir.mkdir(parents=True, exist_ok=True)
         np.save(concept_dir / "concept_vector.npy", vector)
 
-        candidates = _subsample_positions(positions, max_positions, rng)
+        concept_timer = PhaseTimer()
 
-        prototypes, proto_meta, proto_stats = dynamic_prototypes_for_concept(
-            teacher,
-            candidates,
-            layer,
-            vector,
-            n_sim=n_sim,
-            max_depth=max_depth,
-            sort_key=sort_key,
-            min_margin=min_margin,
-            min_value_gap=min_value_gap,
-            min_visit_gap_ratio=min_visit_gap_ratio,
-            t_offset=t_offset,
-            top_percent=top_percent,
-            max_prototypes=max_prototypes,
-        )
+        candidates, candidate_indices = _subsample_positions(positions, max_positions, rng)
+
+        with concept_timer("prototype_generation"), run_timer("prototype_generation"):
+            prototypes, proto_meta, proto_stats = dynamic_prototypes_for_concept(
+                teacher,
+                candidates,
+                layer,
+                vector,
+                n_sim=n_sim,
+                max_depth=max_depth,
+                sort_key=sort_key,
+                min_margin=min_margin,
+                min_value_gap=min_value_gap,
+                min_visit_gap_ratio=min_visit_gap_ratio,
+                t_offset=t_offset,
+                top_percent=top_percent,
+                max_prototypes=max_prototypes,
+            )
+
+        for meta in proto_meta:
+            meta["source_idx"] = candidate_indices[meta["source_idx"]]
 
         save_json(proto_stats, concept_dir / "prototype_stats.json")
+        save_json({"examples": proto_meta}, concept_dir / "prototype_meta.json")
         save_json({"examples": proto_meta[:50]}, concept_dir / "prototype_meta_sample.json")
 
         if len(prototypes) < min_prototypes:
@@ -194,44 +224,53 @@ def run_teachability(cfg: dict, run_dir: Path):
                 "is_teachable": False,
             }
             save_json(result, concept_dir / "result.json")
+            save_json(concept_timer.summary(), concept_dir / "timing.json")
             all_results.append(result)
             print(f"  Skipping (only {len(prototypes)} prototypes)")
             continue
+
+        # Pre-compute teacher top-1 on prototypes once for student selection.
+        with concept_timer("teacher_mcts_prototypes"), run_timer("teacher_mcts_prototypes"):
+            _, teacher_top1_prototypes = mcts_policy_for_positions(
+                teacher, prototypes, n_sim=n_sim, temp=temp,
+            )
 
         # Step B: Student selection.
         student_selection_info = {}
         selected_student_cfg = dict(student_base_cfg)
 
-        if checkpoint_paths:
-            def make_student_cfg(path: str):
-                cfg_i = dict(student_base_cfg)
-                cfg_i["checkpoint_path"] = path
-                return cfg_i
+        with concept_timer("student_selection"), run_timer("student_selection"):
+            if checkpoint_paths:
+                def make_student_cfg(path: str):
+                    cfg_i = dict(student_base_cfg)
+                    cfg_i["checkpoint_path"] = path
+                    return cfg_i
 
-            student_selection_info = select_student_checkpoint(
-                checkpoint_paths=checkpoint_paths,
-                make_model_cfg=make_student_cfg,
-                load_model=_load_model,
-                teacher=teacher,
-                prototypes=prototypes,
-                overlap_threshold=overlap_threshold,
-                n_sim=n_sim,
-                temp=temp,
-            )
-            selected_student_cfg = make_student_cfg(student_selection_info["selected_path"])
-            student_selection_info["mode"] = "sweep"
-        else:
-            student = _load_model(selected_student_cfg)
-            _, overlap = measure_top1_agreement(
-                teacher, student, prototypes, n_sim=n_sim, temp=temp
-            )
-            student_selection_info = {
-                "mode": "single",
-                "selected_path": selected_student_cfg.get("checkpoint_path"),
-                "selected_overlap": float(overlap),
-                "overlap_threshold": float(overlap_threshold),
-                "checked": [],
-            }
+                student_selection_info = select_student_checkpoint(
+                    checkpoint_paths=checkpoint_paths,
+                    make_model_cfg=make_student_cfg,
+                    load_model=_load_model,
+                    teacher=teacher,
+                    prototypes=prototypes,
+                    overlap_threshold=overlap_threshold,
+                    n_sim=n_sim,
+                    temp=temp,
+                    teacher_top1=teacher_top1_prototypes,
+                )
+                selected_student_cfg = make_student_cfg(student_selection_info["selected_path"])
+                student_selection_info["mode"] = "sweep"
+            else:
+                student = _load_model(selected_student_cfg)
+                _, overlap = _measure_top1_agreement_with_cached_teacher(
+                    teacher_top1_prototypes, student, prototypes, n_sim=n_sim, temp=temp,
+                )
+                student_selection_info = {
+                    "mode": "single",
+                    "selected_path": selected_student_cfg.get("checkpoint_path"),
+                    "selected_overlap": float(overlap),
+                    "overlap_threshold": float(overlap_threshold),
+                    "checked": [],
+                }
 
         save_json(student_selection_info, concept_dir / "student_selection.json")
 
@@ -248,19 +287,20 @@ def run_teachability(cfg: dict, run_dir: Path):
         def load_selected_student():
             return _load_model(dict(selected_student_cfg))
 
-        benchmark = run_teachability_benchmark(
-            load_student=load_selected_student,
-            teacher=teacher,
-            X_train_concept=X_train_concept,
-            X_test_concept=X_test_concept,
-            X_train_random=X_train_random,
-            X_test_random=X_test_random,
-            n_sim=n_sim,
-            temp=temp,
-            epochs=epochs,
-            lr=lr,
-            batch_size=batch_size,
-        )
+        with concept_timer("benchmark"), run_timer("benchmark"):
+            benchmark = run_teachability_benchmark(
+                load_student=load_selected_student,
+                teacher=teacher,
+                X_train_concept=X_train_concept,
+                X_test_concept=X_test_concept,
+                X_train_random=X_train_random,
+                X_test_random=X_test_random,
+                n_sim=n_sim,
+                temp=temp,
+                epochs=epochs,
+                lr=lr,
+                batch_size=batch_size,
+            )
 
         teachable, gain = is_teachable(benchmark, margin=teachability_margin)
 
@@ -280,14 +320,17 @@ def run_teachability(cfg: dict, run_dir: Path):
 
         save_json(benchmark, concept_dir / "benchmark.json")
         save_json(result, concept_dir / "result.json")
+        save_json(concept_timer.summary(), concept_dir / "timing.json")
         all_results.append(result)
 
+        timing_str = " ".join(f"{k}={v:.1f}s" for k, v in concept_timer.summary().items())
         print(
             f"  baseline={benchmark['baseline_eval_C']:.3f} "
             f"C->C={benchmark['train_C_eval_C']:.3f} "
             f"R->C={benchmark['train_R_eval_C']:.3f} "
             f"gain={gain:.3f} teachable={teachable}"
         )
+        print(f"  timing: {timing_str}")
 
     summary = {
         "n_concepts": len(all_results),
@@ -296,7 +339,10 @@ def run_teachability(cfg: dict, run_dir: Path):
     }
 
     save_json(summary, run_dir / "results.json")
+    save_json(run_timer.summary(), run_dir / "timing.json")
     print(f"\n=== Results saved to {run_dir} ===")
+    timing_str = " ".join(f"{k}={v:.1f}s" for k, v in run_timer.summary().items())
+    print(f"=== Timing: {timing_str} ===")
     return summary
 
 

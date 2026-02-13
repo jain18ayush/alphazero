@@ -71,23 +71,36 @@ class TestTeachabilityPipelineSmoke(unittest.TestCase):
         def models_get(_source):
             return lambda _cfg: DummyModel()
 
+        proto_meta = [{"min_margin": 0.1, "source_idx": i} for i in range(25)]
+
         with tempfile.TemporaryDirectory() as tmp:
             run_dir = Path(tmp)
-            with patch.object(tp.DATASETS, "get", side_effect=datasets_get), patch.object(tp.MODELS, "get", side_effect=models_get), patch.object(
-                tp, "dynamic_prototypes_for_concept", return_value=(positions[:25], [{"min_margin": 0.1}], {"n_accepted": 25})
-            ), patch.object(tp, "measure_top1_agreement", return_value=(3, 0.1)), patch.object(
-                tp,
-                "run_teachability_benchmark",
-                return_value={
-                    "baseline_eval_C": 0.1,
-                    "train_C_eval_C": 0.6,
-                    "train_C_eval_R": 0.4,
-                    "train_R_eval_C": 0.45,
-                    "train_R_eval_R": 0.5,
-                    "loss_tail_concept": [0.2],
-                    "loss_tail_random": [0.2],
-                },
-            ):
+            with patch.object(tp.DATASETS, "get", side_effect=datasets_get), \
+                 patch.object(tp.MODELS, "get", side_effect=models_get), \
+                 patch.object(
+                     tp, "dynamic_prototypes_for_concept",
+                     return_value=(positions[:25], proto_meta, {"n_accepted": 25}),
+                 ), \
+                 patch.object(
+                     tp, "mcts_policy_for_positions",
+                     return_value=([np.ones(5)] * 25, list(range(25))),
+                 ), \
+                 patch.object(
+                     tp, "_measure_top1_agreement_with_cached_teacher",
+                     return_value=(3, 0.1),
+                 ), \
+                 patch.object(
+                     tp, "run_teachability_benchmark",
+                     return_value={
+                         "baseline_eval_C": 0.1,
+                         "train_C_eval_C": 0.6,
+                         "train_C_eval_R": 0.4,
+                         "train_R_eval_C": 0.45,
+                         "train_R_eval_R": 0.5,
+                         "loss_tail_concept": [0.2],
+                         "loss_tail_random": [0.2],
+                     },
+                 ):
                 summary = tp.run_teachability(cfg, run_dir)
 
             self.assertEqual(summary["n_concepts"], 1)
