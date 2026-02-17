@@ -13,6 +13,7 @@ from alphazero.games.othello import OthelloBoard, OthelloNet
 from alphazero.players import AlphaZeroPlayer
 from src.hooks.extract import extract_features_by_layer, get_single_activation
 from src.spine.spine import extract_rollout_contrasts
+from tqdm import tqdm
 
 
 @dataclass
@@ -77,7 +78,7 @@ def dynamic_prototypes_for_concept(
         "n_accepted": 0,
     }
 
-    for idx, pos in enumerate[dict](positions):
+    for idx, pos in enumerate(positions):
         board = _board_from_pos(pos)
         if board.is_game_over():
             stats["n_no_optimal"] += 1
@@ -175,6 +176,228 @@ def dynamic_prototypes_for_concept(
         accepted_meta = accepted_meta[:max_prototypes]
 
     stats["n_accepted"] = int(len(accepted))
+    return accepted, accepted_meta, stats
+
+
+@dataclass
+class CachedEntry:
+    """Pre-computed MCTS contrasts and activations for a single position."""
+    position: dict
+    source_idx: int
+    contrasts: Dict[str, Any]
+    activations_by_layer: Dict[str, np.ndarray]  # layer -> (N_states, D)
+    segment_lengths: List[int]  # [len(optimal), len(subpar_0), ...]
+
+
+def precompute_rollout_data(
+    net: OthelloNet,
+    positions: Sequence[dict],
+    layers: List[str],
+    n_sim: int,
+    max_depth: int,
+    sort_key: str = "N",
+    min_value_gap: float = 0.20,
+    min_visit_gap_ratio: float = 0.10,
+    t_offset: int = 5,
+) -> Tuple[List[CachedEntry], Dict[str, Any]]:
+    """
+    Pre-compute MCTS contrasts and activations for all positions across all layers.
+
+    This is the expensive, concept-independent step. Run it once and reuse the
+    cache for every concept via ``filter_prototypes_from_cache``.
+
+    Returns
+    -------
+    cache : list[CachedEntry]
+        One entry per surviving position (game-over and missing-subpar filtered out).
+    timing : dict
+        Wall-clock breakdowns: mcts, contrasts, activations, totals and counts.
+    """
+    import time
+
+    player = AlphaZeroPlayer(nn=net, n_sim=n_sim)
+    layer_dicts = [{"name": l} for l in layers]
+
+    cache: List[CachedEntry] = []
+    timing: Dict[str, Any] = {
+        "mcts_total": 0.0,
+        "contrast_total": 0.0,
+        "activation_total": 0.0,
+        "n_positions": len(positions),
+        "n_game_over": 0,
+        "n_no_optimal": 0,
+        "n_missing_subpar": 0,
+        "n_cached": 0,
+    }
+
+
+    for idx, pos in enumerate(tqdm(positions, desc="Precomputing rollouts")):
+        board = _board_from_pos(pos)
+        if board.is_game_over():
+            timing["n_game_over"] += 1
+            continue
+
+        # --- MCTS ---
+        t0 = time.monotonic()
+        player.reset()
+        _ = player.get_move(board)
+        timing["mcts_total"] += time.monotonic() - t0
+
+        # --- Contrast extraction ---
+        t0 = time.monotonic()
+        contrasts = extract_rollout_contrasts(
+            player.mct,
+            board.clone(),
+            max_depth=max_depth,
+            sort_key=sort_key,
+            min_value_gap=min_value_gap,
+            min_visit_gap_ratio=min_visit_gap_ratio,
+            t_offset=t_offset,
+        )
+        timing["contrast_total"] += time.monotonic() - t0
+
+        optimal_rollout = contrasts["optimal_rollout"]
+        subpar_rollouts = contrasts["subpar_rollouts"]
+        required_depths = int(contrasts["required_depths"])
+
+        if len(optimal_rollout) == 0:
+            timing["n_no_optimal"] += 1
+            continue
+
+        if len(subpar_rollouts) < required_depths:
+            timing["n_missing_subpar"] += 1
+            continue
+
+        # Gather all states (optimal + all subpar) for batch extraction.
+        all_states = list(optimal_rollout)
+        segment_lengths = [len(optimal_rollout)]
+        for subpar in subpar_rollouts:
+            all_states.extend(subpar["states"])
+            segment_lengths.append(len(subpar["states"]))
+
+        # --- Activation extraction (all layers in one forward pass) ---
+        t0 = time.monotonic()
+        feats = extract_features_by_layer(net, all_states, layer_dicts)
+        timing["activation_total"] += time.monotonic() - t0
+
+        cache.append(CachedEntry(
+            position=pos,
+            source_idx=idx,
+            contrasts=contrasts,
+            activations_by_layer=feats,  # {layer: (N_states, D)}
+            segment_lengths=segment_lengths,
+        ))
+
+    timing["n_cached"] = len(cache)
+
+    total = timing["mcts_total"] + timing["contrast_total"] + timing["activation_total"]
+    n = max(1, timing["n_positions"] - timing["n_game_over"])
+    timing["total"] = total
+    timing["avg_mcts"] = timing["mcts_total"] / n
+    timing["avg_contrast"] = timing["contrast_total"] / n
+    timing["avg_activation"] = timing["activation_total"] / n
+
+    print(
+        f"  Precompute: {timing['n_cached']}/{timing['n_positions']} cached | "
+        f"mcts={timing['mcts_total']:.1f}s  contrast={timing['contrast_total']:.1f}s  "
+        f"activation={timing['activation_total']:.1f}s  total={total:.1f}s"
+    )
+    print(
+        f"  Skipped: game_over={timing['n_game_over']}  "
+        f"no_optimal={timing['n_no_optimal']}  "
+        f"missing_subpar={timing['n_missing_subpar']}"
+    )
+
+    return cache, timing
+
+
+def filter_prototypes_from_cache(
+    cache: List[CachedEntry],
+    layer: str,
+    v: np.ndarray,
+    min_margin: float = 0.0,
+    top_percent: float | None = None,
+    max_prototypes: int | None = None,
+) -> Tuple[List[dict], List[dict], Dict[str, int | float]]:
+    """
+    Score cached entries with a concept vector and filter prototypes.
+
+    Same output interface as ``dynamic_prototypes_for_concept``.
+    """
+    accepted: List[dict] = []
+    accepted_meta: List[dict] = []
+
+    stats = {
+        "n_positions": len(cache),
+        "n_no_optimal": 0,
+        "n_missing_subpar": 0,
+        "n_failed_margin": 0,
+        "n_accepted": 0,
+    }
+
+    for entry in cache:
+        Z = entry.activations_by_layer.get(layer)
+        if Z is None:
+            stats["n_failed_margin"] += 1
+            continue
+
+        contrasts = entry.contrasts
+        subpar_rollouts = contrasts["subpar_rollouts"]
+
+        # Compute all scores at once: Z @ v
+        all_scores = (Z @ v).tolist()
+
+        # Slice back into optimal and subpar segments.
+        offset = 0
+        optimal_scores = all_scores[offset:offset + entry.segment_lengths[0]]
+        offset += entry.segment_lengths[0]
+        subpar_scores_list = []
+        for seg_len in entry.segment_lengths[1:]:
+            subpar_scores_list.append(all_scores[offset:offset + seg_len])
+            offset += seg_len
+
+        passed = True
+        n_constraints = 0
+        min_margin_obs = float("inf")
+
+        for subpar, subpar_scores in zip(subpar_rollouts, subpar_scores_list):
+            T = min(len(optimal_scores), len(subpar_scores))
+            for t in range(T):
+                margin = optimal_scores[t] - subpar_scores[t]
+                n_constraints += 1
+                min_margin_obs = min(min_margin_obs, margin)
+                if margin < min_margin:
+                    passed = False
+                    break
+            if not passed:
+                break
+
+        if passed and n_constraints > 0:
+            accepted.append(entry.position)
+            accepted_meta.append({
+                "source_idx": entry.source_idx,
+                "n_constraints": int(n_constraints),
+                "min_margin": float(min_margin_obs),
+                "required_depths": int(contrasts["required_depths"]),
+                "available_depths": int(len(subpar_rollouts)),
+            })
+        else:
+            stats["n_failed_margin"] += 1
+
+    if len(accepted) == 0:
+        return [], [], stats
+
+    if top_percent is not None:
+        k = max(1, int(len(accepted) * (top_percent / 100.0)))
+        order = np.argsort([-m["min_margin"] for m in accepted_meta])[:k]
+        accepted = [accepted[i] for i in order]
+        accepted_meta = [accepted_meta[i] for i in order]
+
+    if max_prototypes is not None and len(accepted) > max_prototypes:
+        accepted = accepted[:max_prototypes]
+        accepted_meta = accepted_meta[:max_prototypes]
+
+    stats["n_accepted"] = len(accepted)
     return accepted, accepted_meta, stats
 
 

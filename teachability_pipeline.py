@@ -11,9 +11,11 @@ from src.registries import DATASETS, MODELS
 from src.teachability.teachability import (
     _measure_top1_agreement_with_cached_teacher,
     dynamic_prototypes_for_concept,
+    filter_prototypes_from_cache,
     is_teachable,
     measure_top1_agreement,
     mcts_policy_for_positions,
+    precompute_rollout_data,
     run_teachability_benchmark,
     select_student_checkpoint,
 )
@@ -175,6 +177,31 @@ def run_teachability(cfg: dict, run_dir: Path):
     all_results = []
     run_timer = PhaseTimer()
 
+    # Optionally subsample positions before the expensive precompute step.
+    if max_positions is not None and len(positions) > max_positions:
+        sub_idx = rng.permutation(len(positions))[:max_positions]
+        positions = [positions[i] for i in sub_idx]
+        print(f"Subsampled to {len(positions)} positions (max_positions={max_positions})")
+
+    # Pre-compute MCTS contrasts + activations for all positions (concept-independent).
+    unique_layers = list({c["layer"] for c in concepts})
+    print(f"\n=== Pre-computing rollout data for {len(positions)} positions, layers={unique_layers} ===")
+
+    with run_timer("precompute_rollout_data"):
+        rollout_cache, precompute_timing = precompute_rollout_data(
+            net=teacher,
+            positions=positions,
+            layers=unique_layers,
+            n_sim=n_sim,
+            max_depth=max_depth,
+            sort_key=sort_key,
+            min_value_gap=min_value_gap,
+            min_visit_gap_ratio=min_visit_gap_ratio,
+            t_offset=t_offset,
+        )
+
+    save_json(precompute_timing, run_dir / "precompute_timing.json")
+
     print(f"\n=== Processing {len(concepts)} concepts ===")
     for i, concept in enumerate(concepts):
         layer = concept["layer"]
@@ -188,27 +215,15 @@ def run_teachability(cfg: dict, run_dir: Path):
 
         concept_timer = PhaseTimer()
 
-        candidates, candidate_indices = _subsample_positions(positions, max_positions, rng)
-
-        with concept_timer("prototype_generation"), run_timer("prototype_generation"):
-            prototypes, proto_meta, proto_stats = dynamic_prototypes_for_concept(
-                teacher,
-                candidates,
-                layer,
-                vector,
-                n_sim=n_sim,
-                max_depth=max_depth,
-                sort_key=sort_key,
+        with concept_timer("prototype_filtering"), run_timer("prototype_filtering"):
+            prototypes, proto_meta, proto_stats = filter_prototypes_from_cache(
+                cache=rollout_cache,
+                layer=layer,
+                v=vector,
                 min_margin=min_margin,
-                min_value_gap=min_value_gap,
-                min_visit_gap_ratio=min_visit_gap_ratio,
-                t_offset=t_offset,
                 top_percent=top_percent,
                 max_prototypes=max_prototypes,
             )
-
-        for meta in proto_meta:
-            meta["source_idx"] = candidate_indices[meta["source_idx"]]
 
         save_json(proto_stats, concept_dir / "prototype_stats.json")
         save_json({"examples": proto_meta}, concept_dir / "prototype_meta.json")

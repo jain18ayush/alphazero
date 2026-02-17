@@ -20,7 +20,7 @@ dynamic_prototypes:
   t_offset: 5
   top_percent: null
   max_prototypes: 200
-  max_positions: 10000
+
 
 teachability:
   n_sim: 200
