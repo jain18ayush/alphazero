@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import multiprocessing
+import os
+import pickle
 import re
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Sequence, Tuple
@@ -189,6 +193,97 @@ class CachedEntry:
     segment_lengths: List[int]  # [len(optimal), len(subpar_0), ...]
 
 
+def save_rollout_cache(cache: List[CachedEntry], path: str | Path) -> None:
+    """Save precomputed rollout cache to disk."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "wb") as f:
+        pickle.dump(cache, f, protocol=pickle.HIGHEST_PROTOCOL)
+    print(f"  Saved rollout cache ({len(cache)} entries) to {path}")
+
+
+def load_rollout_cache(path: str | Path) -> List[CachedEntry]:
+    """Load precomputed rollout cache from disk."""
+    with open(path, "rb") as f:
+        cache = pickle.load(f)
+    print(f"  Loaded rollout cache ({len(cache)} entries) from {path}")
+    return cache
+
+
+def _precompute_single_position(
+    net: OthelloNet,
+    pos: dict,
+    idx: int,
+    layer_dicts: List[dict],
+    n_sim: int,
+    max_depth: int,
+    sort_key: str,
+    min_value_gap: float,
+    min_visit_gap_ratio: float,
+    t_offset: int,
+) -> Tuple[int, CachedEntry | None, str | None, Dict[str, float]]:
+    """Worker function for a single position. Must be top-level for pickling."""
+    timing = {"mcts": 0.0, "contrast": 0.0, "activation": 0.0}
+
+    board = _board_from_pos(pos)
+    if board.is_game_over():
+        return idx, None, "game_over", timing
+
+    # Each worker creates its own player (not pickled).
+    player = AlphaZeroPlayer(nn=net, n_sim=n_sim)
+
+    t0 = time.monotonic()
+    player.reset()
+    _ = player.get_move(board)
+    timing["mcts"] = time.monotonic() - t0
+
+    t0 = time.monotonic()
+    contrasts = extract_rollout_contrasts(
+        player.mct,
+        board.clone(),
+        max_depth=max_depth,
+        sort_key=sort_key,
+        min_value_gap=min_value_gap,
+        min_visit_gap_ratio=min_visit_gap_ratio,
+        t_offset=t_offset,
+    )
+    timing["contrast"] = time.monotonic() - t0
+
+    optimal_rollout = contrasts["optimal_rollout"]
+    subpar_rollouts = contrasts["subpar_rollouts"]
+    required_depths = int(contrasts["required_depths"])
+
+    if len(optimal_rollout) == 0:
+        return idx, None, "no_optimal", timing
+
+    if len(subpar_rollouts) < required_depths:
+        return idx, None, "missing_subpar", timing
+
+    all_states = list(optimal_rollout)
+    segment_lengths = [len(optimal_rollout)]
+    for subpar in subpar_rollouts:
+        all_states.extend(subpar["states"])
+        segment_lengths.append(len(subpar["states"]))
+
+    t0 = time.monotonic()
+    feats = extract_features_by_layer(net, all_states, layer_dicts)
+    timing["activation"] = time.monotonic() - t0
+
+    entry = CachedEntry(
+        position=pos,
+        source_idx=idx,
+        contrasts=contrasts,
+        activations_by_layer=feats,
+        segment_lengths=segment_lengths,
+    )
+    return idx, entry, None, timing
+
+
+def _precompute_single_position_star(args):
+    """Unpack tuple for imap_unordered compatibility."""
+    return _precompute_single_position(*args)
+
+
 def precompute_rollout_data(
     net: OthelloNet,
     positions: Sequence[dict],
@@ -199,12 +294,19 @@ def precompute_rollout_data(
     min_value_gap: float = 0.20,
     min_visit_gap_ratio: float = 0.10,
     t_offset: int = 5,
+    n_workers: int | None = None,
 ) -> Tuple[List[CachedEntry], Dict[str, Any]]:
     """
     Pre-compute MCTS contrasts and activations for all positions across all layers.
 
     This is the expensive, concept-independent step. Run it once and reuse the
     cache for every concept via ``filter_prototypes_from_cache``.
+
+    Parameters
+    ----------
+    n_workers : int | None
+        Number of parallel worker processes. ``None`` uses ``os.cpu_count()``.
+        Set to 1 for sequential execution (useful for debugging).
 
     Returns
     -------
@@ -213,12 +315,12 @@ def precompute_rollout_data(
     timing : dict
         Wall-clock breakdowns: mcts, contrasts, activations, totals and counts.
     """
-    import time
-
-    player = AlphaZeroPlayer(nn=net, n_sim=n_sim)
     layer_dicts = [{"name": l} for l in layers]
 
-    cache: List[CachedEntry] = []
+    if n_workers is None:
+        n_workers = os.cpu_count() or 1
+    n_workers = max(1, n_workers)
+
     timing: Dict[str, Any] = {
         "mcts_total": 0.0,
         "contrast_total": 0.0,
@@ -228,65 +330,70 @@ def precompute_rollout_data(
         "n_no_optimal": 0,
         "n_missing_subpar": 0,
         "n_cached": 0,
+        "n_workers": n_workers,
     }
 
+    # Ensure model is on CPU for multiprocessing (CUDA tensors can't be pickled).
+    device = next(net.parameters()).device
+    if device.type != "cpu":
+        net = net.cpu()
 
-    for idx, pos in enumerate(tqdm(positions, desc="Precomputing rollouts")):
-        board = _board_from_pos(pos)
-        if board.is_game_over():
-            timing["n_game_over"] += 1
-            continue
+    if n_workers <= 1:
+        # --- Sequential path ---
+        cache: List[CachedEntry] = []
+        for idx, pos in enumerate(tqdm(positions, desc="Precomputing rollouts")):
+            _, entry, skip_reason, t = _precompute_single_position(
+                net, pos, idx, layer_dicts, n_sim, max_depth,
+                sort_key, min_value_gap, min_visit_gap_ratio, t_offset,
+            )
+            timing["mcts_total"] += t["mcts"]
+            timing["contrast_total"] += t["contrast"]
+            timing["activation_total"] += t["activation"]
+            if entry is not None:
+                cache.append(entry)
+            elif skip_reason == "game_over":
+                timing["n_game_over"] += 1
+            elif skip_reason == "no_optimal":
+                timing["n_no_optimal"] += 1
+            elif skip_reason == "missing_subpar":
+                timing["n_missing_subpar"] += 1
+    else:
+        # --- Parallel path ---
+        print(f"  Using {n_workers} worker processes")
+        wall_start = time.monotonic()
 
-        # --- MCTS ---
-        t0 = time.monotonic()
-        player.reset()
-        _ = player.get_move(board)
-        timing["mcts_total"] += time.monotonic() - t0
+        args_list = [
+            (net, pos, idx, layer_dicts, n_sim, max_depth,
+             sort_key, min_value_gap, min_visit_gap_ratio, t_offset)
+            for idx, pos in enumerate(positions)
+        ]
 
-        # --- Contrast extraction ---
-        t0 = time.monotonic()
-        contrasts = extract_rollout_contrasts(
-            player.mct,
-            board.clone(),
-            max_depth=max_depth,
-            sort_key=sort_key,
-            min_value_gap=min_value_gap,
-            min_visit_gap_ratio=min_visit_gap_ratio,
-            t_offset=t_offset,
-        )
-        timing["contrast_total"] += time.monotonic() - t0
+        with multiprocessing.Pool(n_workers) as pool:
+            results = list(tqdm(
+                pool.imap_unordered(_precompute_single_position_star, args_list),
+                total=len(args_list),
+                desc="Precomputing rollouts",
+            ))
 
-        optimal_rollout = contrasts["optimal_rollout"]
-        subpar_rollouts = contrasts["subpar_rollouts"]
-        required_depths = int(contrasts["required_depths"])
+        wall_elapsed = time.monotonic() - wall_start
+        print(f"  Pool finished in {wall_elapsed:.1f}s (wall clock)")
 
-        if len(optimal_rollout) == 0:
-            timing["n_no_optimal"] += 1
-            continue
+        # Collect results in original index order.
+        cache = []
+        for _, entry, skip_reason, t in results:
+            timing["mcts_total"] += t["mcts"]
+            timing["contrast_total"] += t["contrast"]
+            timing["activation_total"] += t["activation"]
+            if entry is not None:
+                cache.append(entry)
+            elif skip_reason == "game_over":
+                timing["n_game_over"] += 1
+            elif skip_reason == "no_optimal":
+                timing["n_no_optimal"] += 1
+            elif skip_reason == "missing_subpar":
+                timing["n_missing_subpar"] += 1
 
-        if len(subpar_rollouts) < required_depths:
-            timing["n_missing_subpar"] += 1
-            continue
-
-        # Gather all states (optimal + all subpar) for batch extraction.
-        all_states = list(optimal_rollout)
-        segment_lengths = [len(optimal_rollout)]
-        for subpar in subpar_rollouts:
-            all_states.extend(subpar["states"])
-            segment_lengths.append(len(subpar["states"]))
-
-        # --- Activation extraction (all layers in one forward pass) ---
-        t0 = time.monotonic()
-        feats = extract_features_by_layer(net, all_states, layer_dicts)
-        timing["activation_total"] += time.monotonic() - t0
-
-        cache.append(CachedEntry(
-            position=pos,
-            source_idx=idx,
-            contrasts=contrasts,
-            activations_by_layer=feats,  # {layer: (N_states, D)}
-            segment_lengths=segment_lengths,
-        ))
+        timing["wall_clock"] = wall_elapsed
 
     timing["n_cached"] = len(cache)
 
@@ -302,6 +409,9 @@ def precompute_rollout_data(
         f"mcts={timing['mcts_total']:.1f}s  contrast={timing['contrast_total']:.1f}s  "
         f"activation={timing['activation_total']:.1f}s  total={total:.1f}s"
     )
+    if n_workers > 1:
+        print(f"  Wall clock: {timing.get('wall_clock', 0):.1f}s  "
+              f"(speedup: {total / timing.get('wall_clock', total):.1f}x)")
     print(
         f"  Skipped: game_over={timing['n_game_over']}  "
         f"no_optimal={timing['n_no_optimal']}  "

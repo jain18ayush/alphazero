@@ -13,10 +13,12 @@ from src.teachability.teachability import (
     dynamic_prototypes_for_concept,
     filter_prototypes_from_cache,
     is_teachable,
+    load_rollout_cache,
     measure_top1_agreement,
     mcts_policy_for_positions,
     precompute_rollout_data,
     run_teachability_benchmark,
+    save_rollout_cache,
     select_student_checkpoint,
 )
 
@@ -185,20 +187,32 @@ def run_teachability(cfg: dict, run_dir: Path):
 
     # Pre-compute MCTS contrasts + activations for all positions (concept-independent).
     unique_layers = list({c["layer"] for c in concepts})
-    print(f"\n=== Pre-computing rollout data for {len(positions)} positions, layers={unique_layers} ===")
 
-    with run_timer("precompute_rollout_data"):
-        rollout_cache, precompute_timing = precompute_rollout_data(
-            net=teacher,
-            positions=positions,
-            layers=unique_layers,
-            n_sim=n_sim,
-            max_depth=max_depth,
-            sort_key=sort_key,
-            min_value_gap=min_value_gap,
-            min_visit_gap_ratio=min_visit_gap_ratio,
-            t_offset=t_offset,
-        )
+    n_workers = dyn_cfg.get("n_workers")
+    cache_path = dyn_cfg.get("cache_path")
+
+    if cache_path and Path(cache_path).exists():
+        print(f"\n=== Loading rollout cache from {cache_path} ===")
+        with run_timer("precompute_rollout_data"):
+            rollout_cache = load_rollout_cache(cache_path)
+        precompute_timing = {"loaded_from": str(cache_path), "n_cached": len(rollout_cache)}
+    else:
+        print(f"\n=== Pre-computing rollout data for {len(positions)} positions, layers={unique_layers} ===")
+        with run_timer("precompute_rollout_data"):
+            rollout_cache, precompute_timing = precompute_rollout_data(
+                net=teacher,
+                positions=positions,
+                layers=unique_layers,
+                n_sim=n_sim,
+                max_depth=max_depth,
+                sort_key=sort_key,
+                min_value_gap=min_value_gap,
+                min_visit_gap_ratio=min_visit_gap_ratio,
+                t_offset=t_offset,
+                n_workers=n_workers,
+            )
+        if cache_path:
+            save_rollout_cache(rollout_cache, cache_path)
 
     save_json(precompute_timing, run_dir / "precompute_timing.json")
 

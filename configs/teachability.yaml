@@ -20,7 +20,8 @@ dynamic_prototypes:
   t_offset: 5
   top_percent: null
   max_prototypes: 200
-
+  n_workers: 8
+  cache_path: runs/novel_teachability_filter/rollout_cache.pkl
 
 teachability:
   n_sim: 200
