@@ -1,0 +1,37 @@
+{
+  "bn2": {
+    "sparsity": {
+      "n_nonzero": 1660,
+      "sparsity": 0.189453125,
+      "dim": 2048
+    },
+    "spine_pair_separation": {
+      "test_constraint_satisfaction": 0.5,
+      "test_n_satisfied": 2,
+      "test_n_total": 4,
+      "test_mean_margin": -1.0159955682880308,
+      "test_min_margin": -6.333442478806595,
+      "test_median_margin": -1.8898690751839862,
+      "test_mean_plus_proj": 11.404265704062318,
+      "test_mean_minus_proj": 12.42026127235035,
+      "train_constraint_satisfaction": 1.0,
+      "train_n_satisfied": 10,
+      "train_n_total": 10,
+      "train_mean_margin": 10.23858688752701,
+      "train_min_margin": 9.810971947550689,
+      "train_median_margin": 9.810979597487295,
+      "train_mean_plus_proj": 15.734027963659207,
+      "train_mean_minus_proj": 5.495441076132197,
+      "saved": "pair_separation.png"
+    },
+    "spine_nontriviality": {
+      "is_trivial": false,
+      "l2_norm": 0.10192686162062672,
+      "max_abs": 0.013670632982169225,
+      "n_nonzero": 1664,
+      "dim": 2048,
+      "effective_rank": 763
+    },
+    "diagnose_concept_vector": {}
+  }
+}
