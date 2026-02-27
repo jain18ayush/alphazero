@@ -1,0 +1,51 @@
+experiment_name: "amplification_bn2_demo"
+
+model:
+  source: "file"
+  board_size: 8
+  name: "alphazero-othello-8"
+  checkpoint_path: "models/"
+
+positions:
+  source: "model_play"
+  board_size: 8
+  n_games: 5
+  n_sims: 200
+  temp: 1.0
+  min_move_number: 0
+  max_move_number: 60
+
+concept_vectors:
+  - name: "spine_pos_0012"
+    path: "runs/spine_concept_vectors_evals/20260204_220337/pos_0012/layer=bn2/concept_vector.npy"
+    layer: "bn2"
+  - name: "spine_pos_0015"
+    path: "runs/spine_concept_vectors_evals/20260204_220337/pos_0015/layer=bn2/concept_vector.npy"
+    layer: "bn2"
+  - name: "spine_pos_0023"
+    path: "runs/spine_concept_vectors_evals/20260204_220337/pos_0023/layer=bn2/concept_vector.npy"
+    layer: "bn2"
+  - name: "spine_pos_0024"
+    path: "runs/spine_concept_vectors_evals/20260204_220337/pos_0024/layer=bn2/concept_vector.npy"
+    layer: "bn2"
+  - name: "spine_pos_0025"
+    path: "runs/spine_concept_vectors_evals/20260204_220337/pos_0025/layer=bn2/concept_vector.npy"
+    layer: "bn2"
+  - name: "spine_pos_0040"
+    path: "runs/spine_concept_vectors_evals/20260204_220337/pos_0040/layer=bn2/concept_vector.npy"
+    layer: "bn2"
+  - name: "spine_pos_0022"
+    path: "runs/spine_concept_vectors_evals/20260204_220337/pos_0022/layer=bn2/concept_vector.npy"
+    layer: "bn2"
+  - name: "spine_pos_0014"
+    path: "runs/spine_concept_vectors_evals/20260204_220337/pos_0014/layer=bn2/concept_vector.npy"
+    layer: "bn2"
+
+alpha_range: [-0.2, -0.1, 0.1, 0.2, 0.3]
+n_sims: 200
+beta: 0.01
+max_positions: 60
+
+evaluation_dataset:
+  path: "data/STS_concept_eval.jsonl"
+  max_positions: 100
