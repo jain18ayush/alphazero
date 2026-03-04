@@ -11,7 +11,11 @@ from src.registries import DATASETS, MODELS
 import src.datasets.datasets
 import src.models.models
 
-from src.amplification.amplify import run_amplification_experiment
+from src.amplification.amplify import (
+    run_amplification_experiment,
+    load_amplification_eval_dataset,
+    evaluate_concept_on_dataset,
+)
 
 
 def load_yaml(path: str) -> dict:

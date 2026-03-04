@@ -1,0 +1,73 @@
+{
+  "name": "pos_2812_basic_vector",
+  "layer": "bn2",
+  "path": "runs/novel/BasicVector/pos_2812/layer=bn2/concept_vector.npy",
+  "results": {
+    "-0.2": {
+      "move_change_rate": 0.24,
+      "value_shift_mean": -0.027232535183429718,
+      "value_shift_std": 0.10557499527931213,
+      "n_positions": 50
+    },
+    "-0.1": {
+      "move_change_rate": 0.18,
+      "value_shift_mean": -0.022174851968884468,
+      "value_shift_std": 0.09228232502937317,
+      "n_positions": 50
+    },
+    "0.0": {
+      "move_change_rate": 0.02,
+      "value_shift_mean": 0.004269471857696772,
+      "value_shift_std": 0.029919680207967758,
+      "n_positions": 50
+    },
+    "0.1": {
+      "move_change_rate": 0.2,
+      "value_shift_mean": -0.0023671858943998814,
+      "value_shift_std": 0.09078036993741989,
+      "n_positions": 50
+    },
+    "0.2": {
+      "move_change_rate": 0.42,
+      "value_shift_mean": 0.01682106778025627,
+      "value_shift_std": 0.13878674805164337,
+      "n_positions": 50
+    },
+    "0.3": {
+      "move_change_rate": 0.38,
+      "value_shift_mean": 0.03242788463830948,
+      "value_shift_std": 0.2009536474943161,
+      "n_positions": 50
+    }
+  },
+  "eval": {
+    "baseline_accuracy": 0.9,
+    "n_positions": 20,
+    "alpha_results": {
+      "-0.2": {
+        "accuracy": 0.75,
+        "normalized_improvement": -0.16666666666666669
+      },
+      "-0.1": {
+        "accuracy": 0.8,
+        "normalized_improvement": -0.11111111111111108
+      },
+      "0.0": {
+        "accuracy": 0.85,
+        "normalized_improvement": -0.0555555555555556
+      },
+      "0.1": {
+        "accuracy": 0.6,
+        "normalized_improvement": -0.33333333333333337
+      },
+      "0.2": {
+        "accuracy": 0.55,
+        "normalized_improvement": -0.38888888888888884
+      },
+      "0.3": {
+        "accuracy": 0.45,
+        "normalized_improvement": -0.5
+      }
+    }
+  }
+}

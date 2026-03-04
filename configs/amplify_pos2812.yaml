@@ -1,0 +1,33 @@
+experiment_name: "amplification_pos_2812_experiment"
+
+model:
+  source: "file"
+  board_size: 8
+  name: "alphazero-othello-8"
+  checkpoint_path: "models/"
+
+positions:
+  source: "model_play"
+  board_size: 8
+  n_games: 8
+  n_sims: 200
+  temp: 1.0
+  min_move_number: 0
+  max_move_number: 60
+
+concept_vectors:
+  - name: "pos_2812_basic_vector"
+    path: "runs/novel/BasicVector/pos_2812/layer=bn2/concept_vector.npy"
+    layer: "bn2"
+  - name: "pos_2812_teachable"
+    path: "runs/novel/Teachable/pos_2812/layer=bn2/concept_vector.npy"
+    layer: "bn2"
+
+alpha_range: [-0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.5]
+n_sims: 200
+beta: 0.01
+max_positions: 100
+
+evaluation_dataset:
+  path: "data/STS_concept_eval.jsonl"
+  max_positions: 100

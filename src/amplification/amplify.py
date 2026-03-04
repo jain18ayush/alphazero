@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import json
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Iterable, List, Dict, Optional, Tuple
+from typing import Any, Iterable, Dict, Optional, Tuple
 
 import numpy as np
 import torch
 
+from alphazero.base import Action
 from alphazero.games.othello import OthelloBoard
 from alphazero.players import AlphaZeroPlayer
 

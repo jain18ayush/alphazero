@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/Users/sahithbodla/Documents/alphazero/amplification_pipeline.py", line 147, in <module>
+    main()
+  File "/Users/sahithbodla/Documents/alphazero/amplification_pipeline.py", line 57, in main
+    run_dir = make_run_dir(cfg["experiment_name"])
+  File "/Users/sahithbodla/Documents/alphazero/amplification_pipeline.py", line 29, in make_run_dir
+    run_dir.mkdir(parents=True, exist_ok=False)
+  File "/opt/homebrew/Cellar/python@3.10/3.10.19_3/Frameworks/Python.framework/Versions/3.10/lib/python3.10/pathlib.py", line 1175, in mkdir
+    self._accessor.mkdir(self, mode)
+FileExistsError: [Errno 17] File exists: 'runs/amplification_pos_2812_final/20260303_101459'
